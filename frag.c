@@ -75,10 +75,10 @@ void print_hex(uint8_t * buf, uint32_t size)
 
 uint32_t g_id = 0;
 
-hdr_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t dst, uint32_t * o_frags)
+uint8_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t dst, uint32_t * o_frags)
 {
 	/* Variable definition */
-	hdr_t ** packets;
+	uint8_t ** packets;
 	hdr_t * frag;
 	uint32_t id = g_id++;
 	uint32_t orig_size = size;
@@ -109,7 +109,7 @@ hdr_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t ds
 		memcpy((uint8_t *)frag + sizeof(hdr_t), packet, size < MAX_PACKET_SIZE ? size : MAX_PACKET_SIZE);
 
 		/* Set the fragment in the list */
-		packets[*o_frags - 1] = frag;
+		packets[*o_frags - 1] = (uint8_t *)frag;
 
 		/* Quit loop if we finished processing */
 		if (size <= MAX_PACKET_SIZE)
@@ -424,174 +424,164 @@ void handle_packet(uint8_t * packet, uint32_t len)
 
 uint32_t id_bitmap = 0;
 
-void collect_packets(int sockfd)
+typedef enum
+{
+	E_ERR,
+	E_FRAG,
+	E_SUCCESS
+} frag_e;
+
+frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size)
 {
 	/* Variable definition */
 	uint32_t index;
-	uint32_t pkt_len;
-	uint32_t addr_len;
 	uint8_t * packet;
-	hdr_t * pkt;
 	collector_t * collector;
-	struct sockaddr_in addr;
+	hdr_t * pkt;
 	struct timespec t;
 
 	/* Code section */
-	/* Init all the collectors */
+	/* Get the packet */
+	pkt = (hdr_t *)pkt_buffer;
+
+	/* Check packet size */
+	if (pkt_len != MAX_PACKET_SIZE + sizeof(hdr_t))
+	{
+		/* Drop packet. Too large. */
+		DROP_PACKET("Too large");
+
+		return E_ERR;
+	}
+
+	/* Accept only packets that are ID_WINDOW_SIZE IDs in the area of the last id received */
+	if ((pkt->id - last_received_id > ID_WINDOW_SIZE) && (last_received_id - pkt->id > ID_WINDOW_SIZE))
+	{
+		/* Drop the packet if not in window */
+		DROP_PACKET("Not in window");
+
+		return E_ERR;
+	}
+
+	/* Check against replay attacks */
+	if (id_bitmap & 1 << (ID_WINDOW_SIZE + last_received_id - pkt->id))
+	{
+		DROP_PACKET("Replayed packet");
+
+		return E_ERR;
+	}
+
+	/* Get the relevant collector */
 	for (index = 0; index < MAX_COLLECTORS; ++index)
 	{
-		reset_collector(&collectors[index]);
+		if (collectors[index].id == pkt->id)
+		{
+			collector = &collectors[index];
+			break;
+		}
 	}
 
-	while (1)
+	/* No relevant collector found */
+	if (index == MAX_COLLECTORS)
 	{
-		/* Allocate receive buffer */
-		pkt = malloc(MAX_PACKET_SIZE + sizeof(hdr_t));
-
-		/* Set address len */
-		addr_len = sizeof(struct sockaddr_in);
-
-		/* Receive packet from network */
-		pkt_len = recvfrom(sockfd, pkt, MAX_PACKET_SIZE + sizeof(hdr_t), 0, (struct sockaddr *)&addr, &addr_len);
-
-		/* Check packet size */
-		if (pkt_len != MAX_PACKET_SIZE + sizeof(hdr_t))
-		{
-			/* Drop packet. Too large. */
-			DROP_PACKET("Too large");
-
-			continue;
-		}
-
-		/* Accept only packets that are ID_WINDOW_SIZE IDs in the area of the last id received */
-		if ((pkt->id - last_received_id > ID_WINDOW_SIZE) && (last_received_id - pkt->id > ID_WINDOW_SIZE))
-		{
-			/* Drop the packet if not in window */
-			DROP_PACKET("Not in window");
-
-			continue;
-		}
-
-		/* Check against replay attacks */
-		if (id_bitmap & 1 << (ID_WINDOW_SIZE + last_received_id - pkt->id))
-		{
-			DROP_PACKET("Replayed packet");
-
-			continue;
-		}
-
-		/* Get the relevant collector */
-		for (index = 0; index < MAX_COLLECTORS; ++index)
-		{
-			if (collectors[index].id == pkt->id)
-			{
-				collector = &collectors[index];
-				break;
-			}
-		}
-
-		/* No relevant collector found */
-		if (index == MAX_COLLECTORS)
-		{
-			/* Get an available collector */
-			collector = &collectors[get_available_collector()];
-		}
-
-		/* Check if it is the first fragment received for this collector */
-		if (collector->available)
-		{
-			/* Set all the primary arguments */
-			collector->packet_size = pkt->size;
-			collector->id = pkt->id;
-			collector->total_fragments = collector->packet_size / MAX_PACKET_SIZE + !!(collector->packet_size % MAX_PACKET_SIZE);
-
-			/* Add the fragment to the fragments list */
-			collector->packets = malloc(collector->total_fragments * sizeof(hdr_t *));
-
-			/* Collector is not available */
-			collector->available = 0;
-		}
-
-		/* Make basic checks */
-		/* Was the fragment already received? */
-		if (collector->fragments_bitmap & (1 << pkt->frag_idx))
-		{
-			/* Fragment already exist */
-			DROP_PACKET("Fragment alread exist");
-
-			continue;
-
-		}
-
-		/* Check for valid fragment index */
-		if (pkt->frag_idx >= collector->total_fragments)
-		{
-			/* Invalid fragment ID */
-			DROP_PACKET("Invalid fragment ID");
-
-			continue;
-
-		}
-
-		/* Check declared size of packet */
-		if (pkt->size != collector->packet_size)
-		{
-			/* Invalid declared packet size */
-			DROP_PACKET("Invalid declared packet size");
-
-			continue;
-
-		}
-
-		/* No need to check for fragment size as all fragments are the same size */
-
-		/* Set the fragment in the right place */
-		collector->packets[collector->fragments] = pkt;
-
-		/* Increase number of fragments */
-		collector->fragments++;
-
-		/* Update the bitmap */
-		collector->fragments_bitmap |= 1 << pkt->frag_idx;
-
-		/* Get the time */
-		clock_gettime(CLOCK_REALTIME, &t);
-
-		/* Set last update */
-		collector->last_update = (uint32_t) ((t.tv_sec * 1000UL) + (t.tv_nsec / 1000000UL));
-
-		if (collector->fragments == collector->total_fragments)
-		{
-			/* Check whether I should advance the last ID fields */
-			if (
-				((last_received_id < (uint32_t)-ID_WINDOW_SIZE) && (collector->id > last_received_id)) ||
-				((last_received_id >= (uint32_t)-ID_WINDOW_SIZE) && ((collector->id < ID_WINDOW_SIZE) || collector->id > last_received_id))
-			   )
-			{
-				/* Move the bitmap according to the id shift */
-				id_bitmap <<= collector->id - last_received_id;
-
-				last_received_id = collector->id;
-			}
-
-			/* Finally set this ID as received */
-			id_bitmap |= 1 << (last_received_id - collector->id + ID_WINDOW_SIZE);
-
-			/* Send the packet to reassembly */
-			packet = build_packet(collector);
-
-			printf("Finished packet: ID: %d Fragments: %d Size: %d Packet buffer: %p\n", collector->id, collector->total_fragments, collector->packet_size, packet);
-
-			/* Forward to upper level handling of packet */
-			handle_packet(packet, collector->packet_size);
-
-			/* Reset this collector */
-			free_fragments(collector);
-
-			/* Free the packet buffer */
-			free(packet);
-		}
+		/* Get an available collector */
+		collector = &collectors[get_available_collector()];
 	}
+
+	/* Check if it is the first fragment received for this collector */
+	if (collector->available)
+	{
+		/* Set all the primary arguments */
+		collector->packet_size = pkt->size;
+		collector->id = pkt->id;
+		collector->total_fragments = collector->packet_size / MAX_PACKET_SIZE + !!(collector->packet_size % MAX_PACKET_SIZE);
+
+		/* Add the fragment to the fragments list */
+		collector->packets = malloc(collector->total_fragments * sizeof(hdr_t *));
+
+		/* Collector is not available */
+		collector->available = 0;
+	}
+
+	/* Make basic checks */
+	/* Was the fragment already received? */
+	if (collector->fragments_bitmap & (1 << pkt->frag_idx))
+	{
+		/* Fragment already exist */
+		DROP_PACKET("Fragment alread exist");
+
+		return E_ERR;
+
+	}
+
+	/* Check for valid fragment index */
+	if (pkt->frag_idx >= collector->total_fragments)
+	{
+		/* Invalid fragment ID */
+		DROP_PACKET("Invalid fragment ID");
+
+		return E_ERR;
+
+	}
+
+	/* Check declared size of packet */
+	if (pkt->size != collector->packet_size)
+	{
+		/* Invalid declared packet size */
+		DROP_PACKET("Invalid declared packet size");
+
+		return E_ERR;
+
+	}
+
+	/* No need to check for fragment size as all fragments are the same size */
+
+	/* Set the fragment in the right place */
+	collector->packets[collector->fragments] = pkt;
+
+	/* Increase number of fragments */
+	collector->fragments++;
+
+	/* Update the bitmap */
+	collector->fragments_bitmap |= 1 << pkt->frag_idx;
+
+	/* Get the time */
+	clock_gettime(CLOCK_REALTIME, &t);
+
+	/* Set last update */
+	collector->last_update = (uint32_t) ((t.tv_sec * 1000UL) + (t.tv_nsec / 1000000UL));
+
+	if (collector->fragments == collector->total_fragments)
+	{
+		/* Check whether I should advance the last ID fields */
+		if (
+			((last_received_id < (uint32_t)-ID_WINDOW_SIZE) && (collector->id > last_received_id)) ||
+			((last_received_id >= (uint32_t)-ID_WINDOW_SIZE) && ((collector->id < ID_WINDOW_SIZE) || collector->id > last_received_id))
+		   )
+		{
+			/* Move the bitmap according to the id shift */
+			id_bitmap <<= collector->id - last_received_id;
+
+			last_received_id = collector->id;
+		}
+
+		/* Finally set this ID as received */
+		id_bitmap |= 1 << (last_received_id - collector->id + ID_WINDOW_SIZE);
+
+		/* Send the packet to reassembly */
+		packet = build_packet(collector);
+
+		printf("Finished packet: ID: %d Fragments: %d Size: %d Packet buffer: %p\n", collector->id, collector->total_fragments, collector->packet_size, packet);
+
+		*o_full_packet = packet;
+		*o_full_packet_size = collector->packet_size;
+
+		/* Reset this collector */
+		free_fragments(collector);
+
+		return E_SUCCESS;
+	}
+
+	return E_FRAG;
 }
 
 #define PACKET_SIZE 1024
@@ -643,10 +633,28 @@ int create_listening_socket(uint16_t port)
 	return sockfd;
 }
 
+
+void init_collectors( void )
+{
+	uint32_t index;
+	/* Init all the collectors */
+	for (index = 0; index < MAX_COLLECTORS; ++index)
+	{
+		reset_collector(&collectors[index]);
+	}
+}
+
 void moo_server( void )
 {
 	/* Variable definition */
 	int sockfd;
+	uint32_t index;
+	uint32_t pkt_len;
+	uint32_t addr_len;
+	uint32_t full_packet_size;
+	struct sockaddr_in addr;
+	uint8_t * pkt;
+	uint8_t * full_packet;
 #ifdef MOCK_SEND
 	uint8_t buf[PACKET_SIZE];
 	ssize_t recvd_size;
@@ -662,9 +670,28 @@ void moo_server( void )
 		return;
 	}
 
-	/* Call fragment receiving loop */
-	collect_packets(sockfd);
+	init_collectors();
 
+	while (1)
+	{
+		/* Allocate receive buffer */
+		pkt = malloc(MAX_PACKET_SIZE + sizeof(hdr_t));
+
+		/* Set address len */
+		addr_len = sizeof(struct sockaddr_in);
+
+		/* Receive packet from network */
+		pkt_len = recvfrom(sockfd, pkt, MAX_PACKET_SIZE + sizeof(hdr_t), 0, (struct sockaddr *)&addr, &addr_len);
+
+		/* Call fragment receiving loop */
+		if (collect_packets(pkt, pkt_len, &full_packet, &full_packet_size) == E_SUCCESS)
+		{
+			/* Forward to upper level handling of packet */
+			handle_packet(full_packet, full_packet_size);
+
+			free(full_packet);
+		}
+	}
 #ifdef MOCK_SEND
 	/* Set receive struct size */
 	recv_addr_len = sizeof(struct sockaddr_in);
@@ -720,7 +747,7 @@ void moo_client( void )
 #endif
 	uint32_t numfrags;
 	uint8_t packet[PACKET_SIZE];
-	hdr_t ** frags;
+	uint8_t ** frags;
 
 	/* Socket variable definition */
 	int sockfd;
@@ -826,33 +853,4 @@ void moo_client( void )
 	}
 #endif
 	close(sockfd);
-}
-
-#define MOO_SERV "server"
-#define MOO_CLIENT "client"
-int main( int argc, char ** argv )
-{
-	/* Code section */
-	/* Check for mode of operation */
-	if (argc != 1 + 1)
-	{
-		printf("Usage: %s <%s | %s>\n", argv[0], MOO_SERV, MOO_CLIENT);
-
-		return 0;
-	}
-
-	if (strcmp(argv[1], MOO_SERV) == 0)
-	{
-		moo_server();
-	}
-	else if (strcmp(argv[1], MOO_CLIENT) == 0)
-	{
-		moo_client();
-	}
-	else
-	{
-		printf("Usage: %s <%s | %s>\n", argv[0], MOO_SERV, MOO_CLIENT);
-	}
-
-	return 0;
 }

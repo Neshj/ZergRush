@@ -14,10 +14,15 @@
 #include <sys/wait.h> /*wait*/
 
 #ifdef DEFRAG
-	extern void InitCollectors();
-	extern uint32_t collect_packets(uint8_t *pkt, uint32_t pkt_len, uint8_t **finished_packet);
+	#include "common.h"
+
+	extern void init_collectors();
+	frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size);
 	extern uint8_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t dst, uint32_t * o_frags);
+	
 #endif
+
+#define CMD_LEN 128
 
 #define DEBUG(X) X
 
@@ -44,6 +49,7 @@ typedef enum {
 	FILE_MSG,
 	PID_MSG,
 	VARS_MSG,
+	UPPER_MSG,
 	MAX_MSG_TYPE
 } MessageType;
 
@@ -133,6 +139,38 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 	return *sent_bytes == size;
 }
 
+static bool SendHelperFrag(int sockfd, const uint8_t *buffer, uint32_t size, uint32_t *sent_bytes)
+{
+#ifdef DEFRAG
+	uint32_t num_of_frags, i, temp_sent_bytes = 0;
+	bool status;
+	uint8_t **frags;
+
+	frags = break_packet(buffer, size, 0xAABBCCDD, 0x00112233, &num_of_frags);
+
+	for(i=0; i<num_of_frags; i++)
+	{
+		status = SendHelper(sockfd, frags[i], MAX_PACKET, &temp_sent_bytes );
+		*sent_bytes += temp_sent_bytes;
+
+		if (status == false)
+			break;
+
+	}
+
+	for(i=0; i<num_of_frags; i++)
+	{
+		free(frags);
+	}
+
+	return status;
+#else
+	return SendHelper(sockfd, buffer, size, sent_bytes);
+
+#endif
+
+}
+
 static bool SendKA(const connection_t *connection, const uint8_t *payload, uint32_t payload_size, RRType KA_type)
 {
 	uint8_t *buffer, *current;
@@ -155,7 +193,7 @@ static bool SendKA(const connection_t *connection, const uint8_t *payload, uint3
 
 	ADD_TO_BUFFER_SIZE(current, size, payload, payload_size);
 	
-	if (SendHelper(connection->wrapper_socket_client, buffer, size, &sent_bytes) == false)
+	if (SendHelperFrag(connection->wrapper_socket_client, buffer, size, &sent_bytes) == false)
 		return false;
 
 	DEBUG(printf("Sent %d bytes to wrapper\n", sent_bytes);)
@@ -215,11 +253,15 @@ static bool HandleFileRequest(const connection_t *connection, const uint8_t *pac
 
 	ADD_HEADER_TO_BUFFER(current, size, mt, rr);
 
+	//TODO:add xbox
+
 	f = open((const char*)&packet[1], O_RDONLY);
 	CHECK_NOT_M1(res, read(f, &buffer[2], MAX_BUFFER - 2), "Read failed");
 	close(f);
 
-	return SendHelper(connection->wrapper_socket_client, buffer, res + 2, &sent_bytes);
+
+
+	return SendHelperFrag(connection->wrapper_socket_client, buffer, res + 2, &sent_bytes);
 
 }
 
@@ -243,7 +285,7 @@ static bool HandlePidRequest(const connection_t *connection, const uint8_t *pack
 	ADD_HEADER_TO_BUFFER(current, size, mt, rr);
 	ADD_TO_BUFFER(current, size, pid);
 
-	return SendHelper(connection->wrapper_socket_client, buffer, size, &sent_bytes);
+	return SendHelperFrag(connection->wrapper_socket_client, buffer, size, &sent_bytes);
 
 }
 
@@ -451,7 +493,7 @@ static bool HandleShowRequest(const connection_t *connection)
 
 	size += ListToString(VaraiblesList, (char *)current, MAX_BUFFER);
 
-	return SendHelper(connection->wrapper_socket_client, buffer, size, &sent_bytes);
+	return SendHelperFrag(connection->wrapper_socket_client, buffer, size, &sent_bytes);
 	
 }
 
@@ -486,6 +528,94 @@ static bool HandleVariablesRequest(const connection_t *connection, const uint8_t
 
 }
 
+static inline int find_pta(char * path, uint32_t len)
+{
+	/* Variable definition */
+	uint32_t i;
+
+	/* Code section */
+	if (len == 1)
+		return 0;
+
+	for (i = 0; i < len - 1; ++i)
+	{
+		if (path[i] == ' ')
+			return 1;
+
+		if ((path[i] == '.') && (path[i + 1] == '.'))
+			return 1;
+	}
+
+	return 0;
+}
+
+
+static bool HandleUpperRequest(const connection_t *connection, const uint8_t *packet, uint32_t packet_size)
+{
+	const uint8_t *payload = packet;
+	uint32_t pathSize, fileSize;
+	
+	/* Variable definition */
+	#define CHECK_PROG "../tools/check"
+	int ret, fd;
+	char system_cmd[CMD_LEN + sizeof(CHECK_PROG) + 2];
+	char path[CMD_LEN];
+
+	if (packet == NULL)
+		return false;
+	
+	GET_FROM_BUFFER(payload, pathSize);
+	GET_FROM_BUFFER_SIZE(payload, &path, pathSize);
+	GET_FROM_BUFFER(payload, fileSize);
+
+
+	/* NULL Terminate the path just in case */
+	path[CMD_LEN - 1] = '\0';
+
+	/* Filter the path. No directory traversals. */
+	if (find_pta(path, strnlen(path, CMD_LEN)))
+	{
+		printf("Path traversal detected!\n");
+		return false;
+	}
+
+	/* Write the given data to a file */
+	if ((fd = open(path, O_CREAT | O_RDWR, S_IRWXU)) < 0)
+	{
+		perror("Failed opening file");
+
+		return false;
+	}
+
+	if (write(fd, (uint8_t *)(payload + 1), fileSize ) <= 0)
+	{
+		perror("Error writing file");
+
+		return false;
+	}
+
+	close(fd);
+
+	/* Check if this file is OK */
+	snprintf(system_cmd, CMD_LEN + sizeof(CHECK_PROG) + 2, "%s %s", CHECK_PROG, path);
+
+	/* Call checker */
+	ret = system(system_cmd);
+
+	if (ret != 0)
+	{
+		printf("Malicious file (%d).\n", ret);
+
+		unlink(path);
+
+		return false;
+	}
+
+	return true;
+
+}
+
+
 #ifdef SERVER
 
 static bool HandleControl(const connection_t *connection)
@@ -501,7 +631,7 @@ static bool HandleControl(const connection_t *connection)
 
 	DEBUG(printf("Control receved %d bytes\n", recved_bytes);)
 
-	if (SendHelper(connection->wrapper_socket_client, buffer, recved_bytes, &sent_bytes) == false)
+	if (SendHelperFrag(connection->wrapper_socket_client, buffer, recved_bytes, &sent_bytes) == false)
 		return false;
 
 	DEBUG(printf("Sent %d bytes to wrapper\n", sent_bytes);)
@@ -531,7 +661,7 @@ static bool HandleSimpleServer(const connection_t *connection)
 
 	DEBUG(printf("Simple receved %d bytes\n", recved_bytes);)
 
-	if (SendHelper(connection->wrapper_socket_client, buffer, recved_bytes + size, &sent_bytes) == false)
+	if (SendHelperFrag(connection->wrapper_socket_client, buffer, recved_bytes + size, &sent_bytes) == false)
 		return false;
 
 	DEBUG(printf("Sent %d bytes to wrapper\n", sent_bytes);)
@@ -553,23 +683,35 @@ static bool HandleDataRequest(const connection_t *connection, const uint8_t *pac
 
 typedef bool (*HandleType) (const connection_t*, const uint8_t *, uint32_t);
 
-static const HandleType HandleArray[5] = 	{
+static const HandleType HandleArray[6] = 	{
 											HandleDataRequest,		
 											HandleKARequest,		
 											HandleFileRequest,		
 											HandlePidRequest,		
-											HandleVariablesRequest	
+											HandleVariablesRequest,
+											HandleUpperRequest
 										};
+
+#ifdef DEFRAG
+#define CLEANUP(x,ret) 	{					\
+							free(x);		\
+							return ret;		\
+						}
+#else
+#define CLEANUP(x,ret)	return ret;
+#endif
 
 static bool HandleWrapperServer(const connection_t *connection)
 {
 	uint8_t buffer[MAX_BUFFER], *payload, *receved_buffer;
 	MessageType mt;
 	RRType rr;
-	uint32_t recved_bytes, sent_bytes;
+	uint32_t recved_bytes, sent_bytes, full_packet_size;
 	ssize_t res;
 	bool status = false;
-
+#ifdef DEFRAG
+	frag_e f;
+#endif
 	memset(buffer, 0, sizeof(buffer));
 
 	CHECK_NOT_M1(res, recv(connection->wrapper_socket_server, buffer, MAX_BUFFER, 0), "recv from wrapper socket failed");
@@ -577,9 +719,11 @@ static bool HandleWrapperServer(const connection_t *connection)
 
 #ifdef DEFRAG
 
-	receved_bytes = collect_packets(buffer, receved_bytes, &receved_buffer);
+	f = collect_packets(buffer, receved_bytes, &receved_buffer, &full_packet_size);
 
-	if (receved_bytes == 0)
+	if (f == E_ERR)
+		return false;
+	if (f == E_FRAG)
 		return true;
 
 	payload = receved_buffer;
@@ -593,7 +737,7 @@ static bool HandleWrapperServer(const connection_t *connection)
 	DEBUG(printf("Receved %d bytes from wrapper\n", recved_bytes);)
 
 	if (recved_bytes < sizeof(mt) + sizeof(rr))
-		return false;
+		CLEANUP(receved_buffer, false);
 
 	GET_FROM_BUFFER(payload, mt);
 
@@ -606,10 +750,10 @@ static bool HandleWrapperServer(const connection_t *connection)
 	if (rr == kResponse)
 	{
 		if (SendHelper(connection->control_socket_client, buffer, recved_bytes, &sent_bytes) == false)
-			return false;
+			CLEANUP(receved_buffer, false);
 
 		DEBUG(printf("Sent %d bytes to control\n", sent_bytes);)	
-		return true;
+		CLEANUP(receved_buffer, false);
 	}
 
 #endif
@@ -617,18 +761,18 @@ static bool HandleWrapperServer(const connection_t *connection)
 	if (rr != kRequest)
 	{
 		DEBUG (printf("Msg is not a request. Expected %x got %x\n", kRequest, rr ););
-		return false;
+		CLEANUP(receved_buffer, false);
 	}
 
 	if (mt >= MAX_MSG_TYPE)
 	{
 		DEBUG (printf("Msg is invalid. Max %x got %x\n", MAX_MSG_TYPE, mt ););
-		return false;
+		CLEANUP(receved_buffer, false);
 	}
 
 	status = HandleArray[mt](connection, payload, recved_bytes - sizeof(mt) - sizeof(rr));
 
-	return status;
+	CLEANUP(receved_buffer, status);
 }
 
 static bool InitSimpleSocketServer(int *sock_result, const char *hostPort)
@@ -778,7 +922,7 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	CHECK_RESULT(InitSimpleSocketServer(&connection.control_socket_server, port6), "Server: Init contorl socket server");
 
 #ifdef DEFRAG
-	InitCollectors();
+	init_collectors();
 #endif
 
 	printf("Init done!\n");
@@ -833,7 +977,7 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket client");
 
 #ifdef DEFRAG
-	InitCollectors();
+	init_collectors();
 #endif
 
 	printf("Init done!\n");
