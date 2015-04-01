@@ -522,7 +522,10 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 	/* No need to check for fragment size as all fragments are the same size */
 
 	/* Set the fragment in the right place */
-	collector->packets[collector->fragments] = pkt;
+	collector->packets[collector->fragments] = malloc(MAX_PACKET_SIZE + sizeof(hdr_t));
+
+	/* Copy the packet */
+	memcpy(collector->packets[collector->fragments], pkt, MAX_PACKET_SIZE + sizeof(hdr_t));
 
 	/* Increase number of fragments */
 	collector->fragments++;

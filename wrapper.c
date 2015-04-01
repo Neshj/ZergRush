@@ -715,7 +715,7 @@ static const HandleType HandleArray[6] = 	{
 static bool HandleWrapperServer(const connection_t *connection)
 {
 	uint8_t *payload, *receved_buffer;
-	uint8_t  * buffer = (uint8_t *)malloc(MAX_BUFFER);
+	uint8_t  buffer[MAX_BUFFER];
 	MessageType mt;
 	RRType rr;
 	uint32_t recved_bytes, sent_bytes, full_packet_size;
