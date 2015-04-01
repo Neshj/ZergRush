@@ -914,12 +914,14 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.control_socket_client = -1;
 
 
+
 	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket server");
-	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket client");
-	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket server");
-	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket client");
+	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket client");
+	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
 	CHECK_RESULT(InitSimpleSocketClient(&connection.control_socket_client, "localhost", port5), "Server: Init contorl socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.control_socket_server, port6), "Server: Init contorl socket server");
+
 
 #ifdef DEFRAG
 	init_collectors();
@@ -1015,7 +1017,7 @@ int main(int argc, char **argv)
 #ifdef SERVER
 	if (argc != 8)
 	{
-		printf("usage: %s <server_ip> bla bla bla \n", argv[0]);
+		printf("usage: %s <Server IP> <Simple SEND port (To Robot program)> <Simple RECV port> <Wrapper SEND port> <Wrapper RECV port (From RoboServer)> <Control SEND port> <Control RECV port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
@@ -1027,7 +1029,7 @@ int main(int argc, char **argv)
 	
 	if (argc != 6)
 	{
-		printf("usage: %s <server_ip> bla bla bla \n", argv[0]);
+		printf("usage: %s <Server IP> <Simple SEND port> <Simple RECV port (from controlling unit)> <Wrapper SEND port (To Robot server handler)> <Wrapper RECV port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
