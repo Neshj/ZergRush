@@ -13,6 +13,8 @@
 #include <linux/limits.h> /*PATH_MAX*/
 #include <sys/wait.h> /*wait*/
 
+#include "report.h"
+
 #ifdef DEFRAG
 	#include "common.h"
 
@@ -138,19 +140,27 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 
 	return *sent_bytes == size;
 }
-
-static bool SendHelperFrag(int sockfd, const uint8_t *buffer, uint32_t size, uint32_t *sent_bytes)
+void print_hex(uint8_t * buf, uint32_t size);
+static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t *sent_bytes)
 {
 #ifdef DEFRAG
 	uint32_t num_of_frags, i, temp_sent_bytes = 0;
 	bool status;
 	uint8_t **frags;
 
+/*
+	printf("Received buffer:\n");
+	print_hex(buffer, size);
+*/
 	frags = break_packet(buffer, size, 0xAABBCCDD, 0x00112233, &num_of_frags);
-
+	printf("break\n");
 	for(i=0; i<num_of_frags; i++)
 	{
-		status = SendHelper(sockfd, frags[i], MAX_PACKET, &temp_sent_bytes );
+		status = SendHelper(sockfd, frags[i], MAX_PACKET_SIZE + sizeof(hdr_t), &temp_sent_bytes );
+/*
+		print_hex(frags[i], MAX_PACKET_SIZE + sizeof(hdr_t));
+*/
+		printf("Packet sent.\n");
 		*sent_bytes += temp_sent_bytes;
 
 		if (status == false)
@@ -160,7 +170,8 @@ static bool SendHelperFrag(int sockfd, const uint8_t *buffer, uint32_t size, uin
 
 	for(i=0; i<num_of_frags; i++)
 	{
-		free(frags);
+		free(frags[i]);
+		printf("After free\n");
 	}
 
 	return status;
@@ -703,7 +714,8 @@ static const HandleType HandleArray[6] = 	{
 
 static bool HandleWrapperServer(const connection_t *connection)
 {
-	uint8_t buffer[MAX_BUFFER], *payload, *receved_buffer;
+	uint8_t *payload, *receved_buffer;
+	uint8_t  * buffer = (uint8_t *)malloc(MAX_BUFFER);
 	MessageType mt;
 	RRType rr;
 	uint32_t recved_bytes, sent_bytes, full_packet_size;
@@ -719,7 +731,7 @@ static bool HandleWrapperServer(const connection_t *connection)
 
 #ifdef DEFRAG
 
-	f = collect_packets(buffer, receved_bytes, &receved_buffer, &full_packet_size);
+	f = collect_packets(buffer, recved_bytes, &receved_buffer, &full_packet_size);
 
 	if (f == E_ERR)
 		return false;
@@ -912,8 +924,6 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.simple_socket_client = -1;
 	connection.control_socket_server = -1;
 	connection.control_socket_client = -1;
-
-
 
 	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket server");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");

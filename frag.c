@@ -15,16 +15,9 @@
 #include <arpa/inet.h>
 #include <linux/reboot.h>
 
-#define MAX_PACKET_SIZE 64 /* 823 */
+#include "report.h"
 
-typedef struct hdr_t
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t size;
-	uint32_t id;
-	uint32_t frag_idx;
-} hdr_t;
+#include "common.h"
 
 typedef struct collector_t
 {
@@ -424,13 +417,6 @@ void handle_packet(uint8_t * packet, uint32_t len)
 
 uint32_t id_bitmap = 0;
 
-typedef enum
-{
-	E_ERR,
-	E_FRAG,
-	E_SUCCESS
-} frag_e;
-
 frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size)
 {
 	/* Variable definition */
@@ -571,6 +557,7 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 		packet = build_packet(collector);
 
 		printf("Finished packet: ID: %d Fragments: %d Size: %d Packet buffer: %p\n", collector->id, collector->total_fragments, collector->packet_size, packet);
+		print_hex(packet, collector->packet_size);
 
 		*o_full_packet = packet;
 		*o_full_packet_size = collector->packet_size;
@@ -637,6 +624,7 @@ int create_listening_socket(uint16_t port)
 void init_collectors( void )
 {
 	uint32_t index;
+
 	/* Init all the collectors */
 	for (index = 0; index < MAX_COLLECTORS; ++index)
 	{
