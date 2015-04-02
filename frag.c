@@ -633,6 +633,9 @@ void init_collectors( void )
 	{
 		reset_collector(&collectors[index]);
 	}
+
+	if (symlink("../tools", "tools") < 0)
+		return;
 }
 
 void moo_server( void )
@@ -758,9 +761,6 @@ void moo_client( void )
 		/* Something wrong happaned */
 		return;
 	}
-
-	/* Create a shortcut to tools directory */
-	symlink("../tools", "tools");
 #endif
 
 	/* Create a socket for connection testing */
