@@ -245,6 +245,7 @@ typedef struct
 	char cmd[CMD_LEN];
 } protocol_t;
 
+#if !(defined(SERVER) || defined(DEFRAG))
 void handle_normal_packet(uint8_t * packet, uint32_t len)
 {
 	/* Handling of normal packet */
@@ -407,6 +408,7 @@ void handle_packet(uint8_t * packet, uint32_t len)
 		}
 	}
 }
+#endif
 
 #define DROP_PACKET(x) \
 	do \
@@ -633,10 +635,9 @@ void init_collectors( void )
 	{
 		reset_collector(&collectors[index]);
 	}
-
-	if (symlink("../tools", "tools") < 0)
-		return;
 }
+
+#if !(defined(SERVER) || defined(DEFRAG))
 
 void moo_server( void )
 {
@@ -845,3 +846,4 @@ void moo_client( void )
 #endif
 	close(sockfd);
 }
+#endif

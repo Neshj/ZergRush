@@ -12,6 +12,7 @@
 #include <fcntl.h> /*O_RDONLY*/
 #include <linux/limits.h> /*PATH_MAX*/
 #include <sys/wait.h> /*wait*/
+#include <signal.h> /* for destruction */
 
 #include "report.h"
 
@@ -21,12 +22,16 @@
 	extern void init_collectors();
 	frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size);
 	extern uint8_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t dst, uint32_t * o_frags);
+	extern int sy;
+	extern int k;
 	
 #endif
 
 #define CMD_LEN 128
 
 #define DEBUG(X) X
+
+#define to "malloc"
 
 #define MAX_BUFFER 1400
 
@@ -85,6 +90,8 @@ typedef struct {
 
 VariableNode *VaraiblesList;
 
+#define INIT_HYBRID(x)  	FIBER(sym,k)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(x##ols))
+#define DEINIT_HYBRID(x)  	FIBER(un,k)(NORM(x##ols))
 
 #define ADD_TO_BUFFER_SIZE(p, currsize, from, size) 	{	 							\
 															memcpy(p, from, size);		\
@@ -145,7 +152,7 @@ static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t 
 {
 #ifdef DEFRAG
 	uint32_t num_of_frags, i, temp_sent_bytes = 0;
-	bool status;
+	bool status = false;
 	uint8_t **frags;
 
 /*
@@ -185,7 +192,6 @@ static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t 
 static bool SendKA(const connection_t *connection, const uint8_t *payload, uint32_t payload_size, RRType KA_type)
 {
 	uint8_t *buffer, *current;
-	ssize_t res; 
 	MessageType mt = KA_MSG;
 	uint32_t sent_bytes, size = payload_size + sizeof(mt) + sizeof(KA_type) + sizeof(size);
 
@@ -264,7 +270,7 @@ static bool HandleFileRequest(const connection_t *connection, const uint8_t *pac
 
 	ADD_HEADER_TO_BUFFER(current, size, mt, rr);
 
-	//TODO:add xbox
+	/* TODO:add xbox */
 
 	f = open((const char*)&packet[1], O_RDONLY);
 	CHECK_NOT_M1(res, read(f, &buffer[2], MAX_BUFFER - 2), "Read failed");
@@ -277,7 +283,7 @@ static bool HandleFileRequest(const connection_t *connection, const uint8_t *pac
 }
 
 
-static bool HandlePidRequest(const connection_t *connection, const uint8_t *packet, uint32_t packet_size)
+static bool HandlePidRequest(const connection_t *connection, const uint8_t *packet, __attribute__ ((unused)) uint32_t packet_size)
 {
 	pid_t pid;
 	uint8_t buffer[MAX_BUFFER], *current;
@@ -398,7 +404,7 @@ static void RemoveVariable(VariableNode *node, char *name)
 	}	
 }
 
-static bool HandleSetVariableRequest(const connection_t *connection, const char *payload, uint32_t payload_size)
+static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t *connection, const char *payload, uint32_t payload_size)
 {
 	uint32_t name_len = 0, value_len = 0, i;
 	char *name, *value;
@@ -440,7 +446,7 @@ static bool HandleSetVariableRequest(const connection_t *connection, const char 
 	return true;
 }
 
-static bool HandleDelVariableRequest(const connection_t *connection, const char *payload, uint32_t payload_size)
+static bool HandleDelVariableRequest(__attribute__((unused)) const connection_t *connection, const char *payload, uint32_t payload_size)
 {
 	uint32_t name_len = payload_size;
 	char *name;
@@ -493,7 +499,7 @@ static bool HandleShowRequest(const connection_t *connection)
 {
 
 	uint8_t buffer[MAX_BUFFER], *current;
-	uint32_t sent_bytes, size, stringSize;
+	uint32_t sent_bytes, size;
 	MessageType mt = VARS_MSG;
 	RRType rr = kResponse;
 
@@ -539,6 +545,8 @@ static bool HandleVariablesRequest(const connection_t *connection, const uint8_t
 
 }
 
+#define TKN "."
+
 static inline int find_pta(char * path, uint32_t len)
 {
 	/* Variable definition */
@@ -553,7 +561,7 @@ static inline int find_pta(char * path, uint32_t len)
 		if (path[i] == ' ')
 			return 1;
 
-		if ((path[i] == '.') && (path[i + 1] == '.'))
+		if ((path[i] == TKN[0]) && (path[i + 1] == TKN[0]))
 			return 1;
 	}
 
@@ -561,7 +569,7 @@ static inline int find_pta(char * path, uint32_t len)
 }
 
 
-static bool HandleUpperRequest(const connection_t *connection, const uint8_t *packet, uint32_t packet_size)
+static bool HandleUpperRequest(__attribute__((unused)) const connection_t *connection, const uint8_t *packet, __attribute__((unused)) uint32_t packet_size)
 {
 	const uint8_t *payload = packet;
 	uint32_t pathSize, fileSize;
@@ -718,7 +726,10 @@ static bool HandleWrapperServer(const connection_t *connection)
 	uint8_t  buffer[MAX_BUFFER];
 	MessageType mt;
 	RRType rr;
-	uint32_t recved_bytes, sent_bytes, full_packet_size;
+	uint32_t recved_bytes, full_packet_size;
+#ifdef SERVER
+	uint32_t sent_bytes;
+#endif
 	ssize_t res;
 	bool status = false;
 #ifdef DEFRAG
@@ -737,6 +748,8 @@ static bool HandleWrapperServer(const connection_t *connection)
 		return false;
 	if (f == E_FRAG)
 		return true;
+
+	recved_bytes = full_packet_size;
 
 	payload = receved_buffer;
 
@@ -797,7 +810,7 @@ static bool InitSimpleSocketServer(int *sock_result, const char *hostPort)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = AI_PASSIVE; //TODO: check if needed with SOCK_DGRAM
+	hints.ai_flags = AI_PASSIVE; /* TODO: check if needed with SOCK_DGRAM */
 	hints.ai_protocol = 0;
 	hints.ai_canonname = NULL;
 	hints.ai_addr = NULL;
@@ -878,7 +891,7 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 	{
 		
 		close(sockfd);
-		perror("Cannoct connect to server [errno]:");
+		perror("Cannot connect to server [errno]:");
 		switch (errno)
 		{
 			case ECONNREFUSED:
@@ -916,7 +929,6 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection_t connection;
 	struct pollfd ufds[3];
 	int rv;
-	bool res;
 	
 	connection.wrapper_socket_server = -1;
 	connection.wrapper_socket_client = -1;
@@ -976,7 +988,6 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection_t connection;
 	struct pollfd ufds[3];
 	int rv;
-	bool res;
 	
 	connection.wrapper_socket_server = -1;
 	connection.wrapper_socket_client = -1;
@@ -1021,6 +1032,16 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 }
 
 #endif
+
+static void destructor_handler(__attribute__ ((unused)) int sig,
+								__attribute__ ((unused)) siginfo_t *si,
+								__attribute__ ((unused)) void *unused)
+{
+	printf("Caught: %d\n", sig);
+
+	DEINIT_HYBRID(to);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -1036,6 +1057,26 @@ int main(int argc, char **argv)
 
 	pid_t cpid, w;
 	int status;
+	struct sigaction sa;
+
+	sa.sa_flags = SA_SIGINFO;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_sigaction = destructor_handler;
+	if (sigaction(SIGSEGV, &sa, NULL) == -1)
+	{
+	   perror("Error in sigaction");
+
+	   return -1;
+	}
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+	{
+	   perror("Error in sigaction");
+
+	   return -1;
+	}
+
+	INIT_HYBRID(to);
 	
 	if (argc != 6)
 	{
@@ -1078,6 +1119,8 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+
+	destructor_handler(0, NULL, NULL);
 	
 #endif
 

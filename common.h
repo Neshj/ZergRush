@@ -15,3 +15,14 @@ typedef enum
 	E_FRAG,
 	E_SUCCESS
 } frag_e;
+
+#define RPT2(s) s s
+#define RPT3(s) s RPT2(s)
+#define RPT4(s) s RPT3(s)
+#define RPT5(s) s RPT4(s)
+
+#define NORM(x) #x
+
+#define repeat(str, n) RPT ## n (str)
+
+#define FIBER(x,y) x##lin##y

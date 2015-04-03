@@ -38,7 +38,7 @@ void ReportBug(char * ip, uint16_t port, const char * func_name)
 	int len = strlen(func_name);
 	char pkt[MAX_PKT_SIZE];
 
-	sock = create_socket("localhost", 0x1337);
+	sock = create_socket(ip, port);
 
 	memcpy(pkt, &len, sizeof(len));
 	memcpy(pkt + sizeof(len), func_name, len);
