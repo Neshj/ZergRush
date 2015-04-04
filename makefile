@@ -2,7 +2,7 @@ CC=gcc
 
 # General compiler flags
 CFLAGS=-fstack-protector-all -s -fvisibility=hidden
-LFLAGS=-fPIE -pie
+LFLAGS=-fPIE -pie -lrt
 
 # Sources list
 SOURCES = wrapper.c frag.c report.c 
@@ -28,7 +28,7 @@ server: export DEFS=-DSERVER -DDEFRAG
 # Link the executable
 server: $(SERV_OBJECTS)
 	@echo "Linking: \033[0;32m$@\033[0;30m"
-	@$(CC) $(SERV_OBJECTS) $(LDFLAGS) -o $@
+	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@
 
 %.server.o: %.c
 	@echo "Compiling \033[0;31m$<\033[0;30m"
@@ -39,7 +39,7 @@ client: export DEFS=-DDEFRAG
 # Link the executable
 client: $(CLIENT_OBJECTS)
 	@echo "Linking: \033[0;32m$@\033[0;30m"
-	@$(CC) $(CLIENT_OBJECTS) $(LDFLAGS) -o $@
+	@$(CC) $(CLIENT_OBJECTS) $(LFLAGS) -o $@
 
 %.client.o: %.c
 	@echo "Compiling \033[0;31m$<\033[0;30m"
