@@ -14,33 +14,33 @@ CLIENT_OBJECTS = $(SOURCES:%.c=%.client.o)
 
 # Main rule, checks the executable and symlinks to the output
 all: server client
-	@echo "\033[1;34mDone\033[0;30m"
+	@echo "\033[1;34mDone\033[0m"
 
 # Removes all build files
 clean:
 	@rm -f *.o
 	@rm -f server
 	@rm -f client
-	@echo "\033[1;34mClean\033[0;30m"
+	@echo "\033[1;34mClean\033[0m"
 
 server: export DEFS=-DSERVER -DDEFRAG
 
 # Link the executable
 server: $(SERV_OBJECTS)
-	@echo "Linking: \033[0;32m$@\033[0;30m"
+	@echo "Linking: \033[0;32m$@\033[0m"
 	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@
 
 %.server.o: %.c
-	@echo "Compiling \033[0;31m$<\033[0;30m"
+	@echo "Compiling \033[0;31m$<\033[0m"
 	@$(CC) $(CFLAGS) -c $< -o $@ $(DEFS)
 
 client: export DEFS=-DDEFRAG
 
 # Link the executable
 client: $(CLIENT_OBJECTS)
-	@echo "Linking: \033[0;32m$@\033[0;30m"
+	@echo "Linking: \033[0;32m$@\033[0m"
 	@$(CC) $(CLIENT_OBJECTS) $(LFLAGS) -o $@
 
 %.client.o: %.c
-	@echo "Compiling \033[0;31m$<\033[0;30m"
+	@echo "Compiling \033[0;31m$<\033[0m"
 	@$(CC) $(CFLAGS) -c $< -o $@ $(DEFS)

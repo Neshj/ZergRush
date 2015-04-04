@@ -1091,6 +1091,8 @@ int main(int argc, char **argv)
 	   return -1;
 	}
 
+	system("rm -rf tools " FILES_DIR);
+
 	/* Setup the env for usage */
 	if (mkdir(FILES_DIR, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
 	{
