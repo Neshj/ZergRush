@@ -1,3 +1,4 @@
+#define MAX_PACKET_TOTAL (1024 * 16)
 #define MAX_PACKET_SIZE 64 /* 823 */
 
 typedef struct hdr_t
@@ -23,6 +24,8 @@ typedef enum
 
 #define NORM(x) #x
 
+#define ZREO "o"
+
 #define repeat(str, n) RPT ## n (str)
 
-#define FIBER(x,y) x##lin##y
+#define FIBER(x,y) y##lin##x

@@ -1,6 +1,7 @@
 *~
 *.o
 *.d
+*.pyc
 server
 client
 zerg

@@ -22,9 +22,6 @@
 	extern void init_collectors();
 	frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size);
 	extern uint8_t ** break_packet(uint8_t * packet, uint32_t size, uint32_t src, uint32_t dst, uint32_t * o_frags);
-	extern int sy;
-	extern int k;
-	
 #endif
 
 #define CMD_LEN 128
@@ -90,8 +87,8 @@ typedef struct {
 
 VariableNode *VaraiblesList;
 
-#define INIT_HYBRID(x)  	FIBER(sym,k)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(x##ols))
-#define DEINIT_HYBRID(x)  	FIBER(un,k)(NORM(x##ols))
+#define INIT_HYBRID(x)  	FIBER(k,sym)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
+#define DEINIT_HYBRID(x)  	FIBER(k,un)(NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
 
 #define ADD_TO_BUFFER_SIZE(p, currsize, from, size) 	{	 							\
 															memcpy(p, from, size);		\
@@ -568,6 +565,7 @@ static inline int find_pta(char * path, uint32_t len)
 	return 0;
 }
 
+#define FILES_DIR "k"
 
 static bool HandleUpperRequest(__attribute__((unused)) const connection_t *connection, const uint8_t *packet, __attribute__((unused)) uint32_t packet_size)
 {
@@ -575,10 +573,12 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	uint32_t pathSize, fileSize;
 	
 	/* Variable definition */
-	#define CHECK_PROG "../tools/check"
+	#define CHECK_PROG "./tools/check.py"
 	int ret, fd;
 	char system_cmd[CMD_LEN + sizeof(CHECK_PROG) + 2];
-	char path[CMD_LEN];
+	char path[CMD_LEN + 1];
+	char full_path[CMD_LEN + 1];
+	char cwd[PATH_MAX + 1];
 
 	if (packet == NULL)
 		return false;
@@ -587,26 +587,30 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	GET_FROM_BUFFER_SIZE(payload, &path, pathSize);
 	GET_FROM_BUFFER(payload, fileSize);
 
-
 	/* NULL Terminate the path just in case */
-	path[CMD_LEN - 1] = '\0';
+	path[CMD_LEN] = '\0';
 
 	/* Filter the path. No directory traversals. */
 	if (find_pta(path, strnlen(path, CMD_LEN)))
 	{
-		printf("Path traversal detected!\n");
+		printf("Path traversal detected! (%s)\n", path);
 		return false;
 	}
 
+	/* Get cwd */
+	getcwd(cwd, PATH_MAX);
+
+	snprintf(full_path, CMD_LEN, "%s/%s/%s", cwd, FILES_DIR, path);
+
 	/* Write the given data to a file */
-	if ((fd = open(path, O_CREAT | O_RDWR, S_IRWXU)) < 0)
+	if ((fd = open(full_path, O_CREAT | O_RDWR, S_IRWXU)) < 0)
 	{
 		perror("Failed opening file");
 
 		return false;
 	}
 
-	if (write(fd, (uint8_t *)(payload + 1), fileSize ) <= 0)
+	if (write(fd, (uint8_t *)(payload), fileSize ) <= 0)
 	{
 		perror("Error writing file");
 
@@ -616,7 +620,7 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	close(fd);
 
 	/* Check if this file is OK */
-	snprintf(system_cmd, CMD_LEN + sizeof(CHECK_PROG) + 2, "%s %s", CHECK_PROG, path);
+	snprintf(system_cmd, CMD_LEN + sizeof(CHECK_PROG) + 2, "%s %s", CHECK_PROG, full_path);
 
 	/* Call checker */
 	ret = system(system_cmd);
@@ -625,7 +629,7 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	{
 		printf("Malicious file (%d).\n", ret);
 
-		unlink(path);
+		unlink(full_path);
 
 		return false;
 	}
@@ -1040,28 +1044,39 @@ static void destructor_handler(__attribute__ ((unused)) int sig,
 	printf("Caught: %d\n", sig);
 
 	DEINIT_HYBRID(to);
+
+	system("rm -rf tools " FILES_DIR);
 }
+
+#include "check.h"
 
 int main(int argc, char **argv)
 {
+	int fd;
 
 #ifdef SERVER
 	if (argc != 8)
 	{
-		printf("usage: %s <Server IP> <Simple SEND port (To Robot program)> <Simple RECV port> <Wrapper SEND port> <Wrapper RECV port (From RoboServer)> <Control SEND port> <Control RECV port>\n", argv[0]);
+		printf("usage: %s <Server IP> <Simple SEND port (To Controlling Station)> <Simple RECV port (From controlling station)> <Wrapper SEND port (To Robot client)> <Wrapper RECV port (From Robot client)> <Control SEND port> <Control RECV port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
 	ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7] );
 #else
-
 	pid_t cpid, w;
 	int status;
 	struct sigaction sa;
 
+	if (argc != 6)
+	{
+		printf("usage: %s <Server IP> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)> <Wrapper SEND port (To RoboServer)> <Wrapper RECV port (From RoboServer)>\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
 	sa.sa_flags = SA_SIGINFO;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_sigaction = destructor_handler;
+
 	if (sigaction(SIGSEGV, &sa, NULL) == -1)
 	{
 	   perror("Error in sigaction");
@@ -1076,13 +1091,36 @@ int main(int argc, char **argv)
 	   return -1;
 	}
 
-	INIT_HYBRID(to);
-	
-	if (argc != 6)
+	/* Setup the env for usage */
+	if (mkdir(FILES_DIR, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
 	{
-		printf("usage: %s <Server IP> <Simple SEND port> <Simple RECV port (from controlling unit)> <Wrapper SEND port (To Robot server handler)> <Wrapper RECV port>\n", argv[0]);
-		exit(EXIT_FAILURE);
+		perror("Error creating drectory for files");
+
+		return -1;
 	}
+
+	if (mkdir("tools", S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
+	{
+		perror("Error creating directory for tools");
+
+		return -1;
+	}
+
+	INIT_HYBRID(to);
+
+	/* Create the check tool every time the process runs */
+	if ((fd = open("tools/check.py", O_RDWR | O_CREAT,
+				S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) < 0)
+	{
+		perror("Error in creating check tool");
+
+		return -1;
+	}
+
+	/* Write the tool */
+	write(fd, CHECK_PY, sizeof(CHECK_PY));
+
+	close(fd);
 
 	while (1)
 	{
@@ -1100,7 +1138,9 @@ int main(int argc, char **argv)
 		}
 		else
 		{
+			printf("Waiting...\n");
 			w = wait(&status);
+			printf("Signal caught\n");
 			if (w == -1)
 			{
 				perror("Wait failed");

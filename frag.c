@@ -136,6 +136,9 @@ uint8_t * build_packet(collector_t * collector)
 	/* Allocate memory for the packet */
 	packet = malloc(collector->packet_size);
 
+	if (packet == NULL)
+		return NULL;
+
 	/* Get the packets array */
 	pkts = collector->packets;
 
@@ -245,171 +248,6 @@ typedef struct
 	char cmd[CMD_LEN];
 } protocol_t;
 
-#if !(defined(SERVER) || defined(DEFRAG))
-void handle_normal_packet(uint8_t * packet, uint32_t len)
-{
-	/* Handling of normal packet */
-}
-
-int find_pta(char * path, uint32_t len)
-{
-	/* Variable definition */
-	uint32_t i;
-
-	/* Code section */
-	if (len == 1)
-		return 0;
-
-	for (i = 0; i < len - 1; ++i)
-	{
-		if (path[i] == ' ')
-			return 1;
-
-		if ((path[i] == '.') && (path[i + 1] == '.'))
-			return 1;
-	}
-
-	return 0;
-}
-
-#define LINUX_REBOOT_MAGIC1 0xfee1dead
-
-void handle_control_packet(protocol_t * packet, uint32_t len)
-{
-	/* Variable definition */
-	int fd;
-	char * path;
-
-	/* Code section */
-	/* Handling of control packet packet */
-	switch (packet->control_type)
-	{
-		case E_CONTROL_RESTART:
-		{
-			/* Need to be called with CAP_SYS_BOOT */
-			/* if (reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2C, LINUX_REBOOT_CMD_RESTART, packet->cmd) < 0) */
-			if (reboot(atoi(packet->cmd)) < 0)
-			{
-				printf("Insufficient priviliges?\n");
-			}
-
-			break;
-		}
-
-		case E_CONTROL_UPDATE_FILE:
-		{
-			/* Variable definition */
-			#define CHECK_PROG "../tools/check"
-			int ret;
-			char system_cmd[CMD_LEN + sizeof(CHECK_PROG) + 2];
-
-			/* Get the cmd as the file path */
-			path = packet->cmd;
-
-			/* NULL Terminate the path just in case */
-			path[CMD_LEN - 1] = '\0';
-
-			/* Filter the path. No directory traversals. */
-			if (find_pta(path, strnlen(path, CMD_LEN)))
-			{
-				printf("Path traversal detected!\n");
-				break;
-			}
-
-			/* Write the given data to a file */
-			if ((fd = open(path, O_CREAT | O_RDWR, S_IRWXU)) < 0)
-			{
-				perror("Failed opening file");
-
-				break;
-			}
-
-			if (write(fd, (uint8_t *)(packet + 1), len - sizeof(protocol_t)) <= 0)
-			{
-				perror("Error writing file");
-
-				break;
-			}
-
-			close(fd);
-
-			/* Check if this file is OK */
-			snprintf(system_cmd, CMD_LEN + sizeof(CHECK_PROG) + 2, "%s %s", CHECK_PROG, path);
-
-			/* Call checker */
-			ret = system(system_cmd);
-
-			if (ret != 0)
-			{
-				printf("Malicious file (%d).\n", ret);
-
-				unlink(path);
-
-				break;
-			}
-			
-			break;
-		}
-
-		default:
-		{
-			/* Drop packet beacuse of unsupported control message. */
-			printf("Unsupported control message.\n");
-
-			break;
-		}
-	}
-}
-
-void handle_packet(uint8_t * packet, uint32_t len)
-{
-	/* Variable definition */
-	protocol_t * header;
-
-	/* Check that the packet is at least long enough to the protocol */
-	if (len < sizeof(protocol_t))
-	{
-		/* Drop the packet */
-		printf("Message received too short.\n");
-
-		return;
-	}
-
-	/* Cast to the msg typedef */
-	header = (protocol_t *)packet;
-
-	/* Handle the message accordingly */
-	switch (header->type)
-	{
-		case E_NORMAL:
-		{
-			if (header->control_type != E_CONTROL_NORMAL)
-			{
-				/* Drop packet because of invalid control message type. */
-				printf("Invalid control message type.\n");
-
-				return;
-			}
-
-			handle_normal_packet((uint8_t *)(header + 1), len);
-			break;
-		}
-
-		case E_CONTROL:
-		{
-			handle_control_packet(header, len);
-			break;
-		}
-
-		default:
-		{
-			printf("Unsupported packet type.\n");
-			break;
-		}
-	}
-}
-#endif
-
 #define DROP_PACKET(x) \
 	do \
 	{ \
@@ -417,7 +255,11 @@ void handle_packet(uint8_t * packet, uint32_t len)
 	} \
 	while (0)
 
+#ifdef WINDOW
+
 uint32_t id_bitmap = 0;
+
+#endif
 
 frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full_packet, uint32_t * o_full_packet_size)
 {
@@ -437,10 +279,12 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 	{
 		/* Drop packet. Too large. */
 		DROP_PACKET("Too large");
+		printf("%d\n", pkt_len);
 
 		return E_ERR;
 	}
 
+#ifdef WINDOW
 	/* Accept only packets that are ID_WINDOW_SIZE IDs in the area of the last id received */
 	if ((pkt->id - last_received_id > ID_WINDOW_SIZE) && (last_received_id - pkt->id > ID_WINDOW_SIZE))
 	{
@@ -457,6 +301,7 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 
 		return E_ERR;
 	}
+#endif
 
 	/* Get the relevant collector */
 	for (index = 0; index < MAX_COLLECTORS; ++index)
@@ -475,13 +320,19 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 		collector = &collectors[get_available_collector()];
 	}
 
+	if (pkt->size  > MAX_PACKET_TOTAL)
+	{
+		DROP_PACKET("Packet too large");
+
+		return E_ERR;
+	}
+
 	/* Check if it is the first fragment received for this collector */
 	if (collector->available)
 	{
-		/* Set all the primary arguments */
-		collector->packet_size = pkt->size;
+		/* Set all the primary arguments */		
 		collector->id = pkt->id;
-		collector->total_fragments = collector->packet_size / MAX_PACKET_SIZE + !!(collector->packet_size % MAX_PACKET_SIZE);
+		collector->total_fragments = pkt->size / MAX_PACKET_SIZE + !!(pkt->size % MAX_PACKET_SIZE);
 
 		/* Add the fragment to the fragments list */
 		collector->packets = malloc(collector->total_fragments * sizeof(hdr_t *));
@@ -489,6 +340,9 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 		/* Collector is not available */
 		collector->available = 0;
 	}
+
+	/* Set packet size */
+	collector->packet_size = pkt->size;
 
 	/* Make basic checks */
 	/* Was the fragment already received? */
@@ -543,6 +397,7 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 
 	if (collector->fragments == collector->total_fragments)
 	{
+#ifdef WINDOW
 		/* Check whether I should advance the last ID fields */
 		if (
 			((last_received_id < (uint32_t)-ID_WINDOW_SIZE) && (collector->id > last_received_id)) ||
@@ -557,6 +412,7 @@ frag_e collect_packets(uint8_t * pkt_buffer, uint32_t pkt_len, uint8_t ** o_full
 
 		/* Finally set this ID as received */
 		id_bitmap |= 1 << (last_received_id - collector->id + ID_WINDOW_SIZE);
+#endif
 
 		/* Send the packet to reassembly */
 		packet = build_packet(collector);
