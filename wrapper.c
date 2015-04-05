@@ -406,6 +406,8 @@ static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t 
 	uint32_t name_len = 0, value_len = 0, i;
 	char *name, *value;
 
+	printf("payload_size: %d\n", payload_size);
+
 	for(i=0; i < payload_size; i++)
 	{
 		if (payload[i] == ' ')
@@ -415,13 +417,18 @@ static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t 
 		}
 	} 
 
+	printf("1 %d\n", name_len);
 
 	if (name_len == payload_size || name_len == 0)
 		return false;
 
+	printf("2\n");
+
 	name = malloc(name_len+1);
 	if (name == NULL)
 		return false;
+
+	printf("3\n");
 
 	strncpy(name, payload, name_len);
 	name[name_len] = '\0';
@@ -431,12 +438,18 @@ static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t 
 	if (value_len == 0)
 		return false;
 
+	printf("4 %s\n", name);
+
 	value = malloc(value_len+1);
 	if (value == NULL)
 		return false;
 
+	printf("5\n");
+
 	strncpy(value, payload + name_len + 1, value_len);
 	value[value_len] = '\0';
+
+	printf("%s = %s\n", name, value);
 
 	AddVariable(&VaraiblesList, name, value);
 
@@ -833,13 +846,13 @@ static bool InitSimpleSocketServer(int *sock_result, const char *hostPort)
 		fprintf(stderr, "Cannot connect to server: kernel returned NULL\n");
 		exit(EXIT_FAILURE);
 	}
-
+#if 0
 	if (result->ai_next != NULL)
 	{
 		fprintf(stderr, "Cannot connect to server - multiple sockets found\n");
 		exit(EXIT_FAILURE);
 	}
-
+#endif
 	CHECK_NOT_M1(sockfd, socket(AF_INET, SOCK_DGRAM, 0), "Simple Socket failed");
 	
 	CHECK_NOT_M1(res, bind(sockfd, result->ai_addr, result->ai_addrlen), "Simple socket bind failed");
@@ -880,13 +893,13 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 		fprintf(stderr, "Cannot connect to server: kernel returned NULL\n");
 		exit(EXIT_FAILURE);
 	}
-
+#if 0
 	if (result->ai_next != NULL)
 	{
 		fprintf(stderr, "Cannot connect to server - multiple sockets found\n");
 		exit(EXIT_FAILURE);
 	}
-
+#endif
 	res = connect(sockfd, result->ai_addr, result->ai_addrlen);
 
 	freeaddrinfo(result);
@@ -1041,11 +1054,18 @@ static void destructor_handler(__attribute__ ((unused)) int sig,
 								__attribute__ ((unused)) siginfo_t *si,
 								__attribute__ ((unused)) void *unused)
 {
-	printf("Caught: %d\n", sig);
+	printf("Caught(%d): %d\n", getpid(), sig);
 
 	DEINIT_HYBRID(to);
 
-	system("rm -rf tools " FILES_DIR);
+	if (sig == SIGINT)
+	{
+		system("rm -rf tools " FILES_DIR);
+	}
+	else if (sig == SIGSEGV)
+	{
+		exit(-42);
+	}
 }
 
 #include "check.h"
@@ -1053,6 +1073,7 @@ static void destructor_handler(__attribute__ ((unused)) int sig,
 int main(int argc, char **argv)
 {
 	int fd;
+	DEBUG(printf("%d\n", getpid()););
 
 #ifdef SERVER
 	if (argc != 8)
@@ -1079,16 +1100,16 @@ int main(int argc, char **argv)
 
 	if (sigaction(SIGSEGV, &sa, NULL) == -1)
 	{
-	   perror("Error in sigaction");
+		perror("Error in sigaction");
 
-	   return -1;
+		return -1;
 	}
 
 	if (sigaction(SIGINT, &sa, NULL) == -1)
 	{
-	   perror("Error in sigaction");
+		perror("Error in sigaction");
 
-	   return -1;
+		return -1;
 	}
 
 	system("rm -rf tools " FILES_DIR);
@@ -1098,14 +1119,14 @@ int main(int argc, char **argv)
 	{
 		perror("Error creating drectory for files");
 
-		return -1;
+		/* return -1; */
 	}
 
 	if (mkdir("tools", S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
 	{
 		perror("Error creating directory for tools");
 
-		return -1;
+		/* return -1; */
 	}
 
 	INIT_HYBRID(to);
@@ -1152,7 +1173,11 @@ int main(int argc, char **argv)
 			if (WIFEXITED(status))
 			{
 				printf("Client exited with status %d\n", WEXITSTATUS(status));
-				exit(EXIT_SUCCESS);
+
+				if (WEXITSTATUS(status) == 0)
+					exit(EXIT_SUCCESS);
+
+				sleep(5);
 			}
 			if (WIFSIGNALED(status))
 			{
@@ -1163,7 +1188,7 @@ int main(int argc, char **argv)
 	}
 
 	destructor_handler(0, NULL, NULL);
-	
+
 #endif
 
 	return EXIT_SUCCESS;
