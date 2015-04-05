@@ -709,7 +709,7 @@ typedef bool (*HandleType) (const connection_t*, const uint8_t *, uint32_t);
 static const HandleType HandleArray[6] = 	{
 											HandleDataRequest,		
 											HandleKARequest,		
-											Handleuest,		
+											HandleFileRequest,		
 											HandlePidRequest,		
 											HandleVariablesRequest,
 											HandleUpperRequest
