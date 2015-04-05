@@ -87,9 +87,6 @@ typedef struct {
 
 VariableNode *VaraiblesList;
 
-#define INIT_HYBRID(x)  	FIBER(k,sym)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
-#define DEINIT_HYBRID(x)  	FIBER(k,un)(NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
-
 #define ADD_TO_BUFFER_SIZE(p, currsize, from, size) 	{	 							\
 															memcpy(p, from, size);		\
 															currsize += size;			\
@@ -117,7 +114,9 @@ VariableNode *VaraiblesList;
 #define ADD_HEADER_TO_BUFFER(p, currsize, mt, rr)	{											\
 														ADD_TO_BUFFER (p, currsize, mt);		\
 														ADD_TO_BUFFER (p, currsize, rr);		\
-													}														
+													}
+
+void print_hex(uint8_t * buf, uint32_t size);
 
 static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, uint32_t *sent_bytes)
 {
@@ -136,7 +135,7 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 				return false;
 			default:
 				perror("Send to simple socket failed");
-				exit(EXIT_FAILURE);		
+				exit(EXIT_FAILURE);
 		}
 	}
 
@@ -144,7 +143,7 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 
 	return *sent_bytes == size;
 }
-void print_hex(uint8_t * buf, uint32_t size);
+
 static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t *sent_bytes)
 {
 #ifdef DEFRAG
@@ -157,14 +156,12 @@ static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t 
 	print_hex(buffer, size);
 */
 	frags = break_packet(buffer, size, 0xAABBCCDD, 0x00112233, &num_of_frags);
-	printf("break\n");
 	for(i=0; i<num_of_frags; i++)
 	{
 		status = SendHelper(sockfd, frags[i], MAX_PACKET_SIZE + sizeof(hdr_t), &temp_sent_bytes );
 /*
 		print_hex(frags[i], MAX_PACKET_SIZE + sizeof(hdr_t));
 */
-		printf("Packet sent.\n");
 		*sent_bytes += temp_sent_bytes;
 
 		if (status == false)
@@ -175,7 +172,6 @@ static bool SendHelperFrag(int sockfd, uint8_t *buffer, uint32_t size, uint32_t 
 	for(i=0; i<num_of_frags; i++)
 	{
 		free(frags[i]);
-		printf("After free\n");
 	}
 
 	return status;
@@ -370,9 +366,10 @@ static void RemoveVariable(VariableNode *node, char *name)
 
 	if (strcmp(name, curr_node->name) == 0 )
 	{
+		curr_node->next->prev = NULL;
+
 		free(curr_node->name);
 		free(curr_node->value);
-		free(curr_node->next->prev = NULL);
 		free(curr_node);
 
 		return;
@@ -398,7 +395,7 @@ static void RemoveVariable(VariableNode *node, char *name)
 		free(curr_node->value);
 		free(curr_node->prev->next = NULL);
 		free(curr_node);
-	}	
+	}
 }
 
 static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t *connection, const char *payload, uint32_t payload_size)
@@ -417,39 +414,27 @@ static bool HandleSetVariableRequest(__attribute__((unused)) const connection_t 
 		}
 	} 
 
-	printf("1 %d\n", name_len);
-
 	if (name_len == payload_size || name_len == 0)
 		return false;
-
-	printf("2\n");
 
 	name = malloc(name_len+1);
 	if (name == NULL)
 		return false;
 
-	printf("3\n");
-
 	strncpy(name, payload, name_len);
 	name[name_len] = '\0';
 
 	value_len = payload_size - name_len;
-	 
+ 
 	if (value_len == 0)
 		return false;
-
-	printf("4 %s\n", name);
 
 	value = malloc(value_len+1);
 	if (value == NULL)
 		return false;
 
-	printf("5\n");
-
 	strncpy(value, payload + name_len + 1, value_len);
 	value[value_len] = '\0';
-
-	printf("%s = %s\n", name, value);
 
 	AddVariable(&VaraiblesList, name, value);
 
@@ -490,6 +475,7 @@ static uint32_t ListToString(VariableNode *node, char *buffer, uint32_t buffer_s
 		len = strlen(curr_node->name) + strlen(curr_node->value) + strlen(" : \n");
 		if (size + len > buffer_size)
 		{
+			printf("Over %d %d\n", size + len, buffer_size);
 			return size;
 		}
 
@@ -501,6 +487,7 @@ static uint32_t ListToString(VariableNode *node, char *buffer, uint32_t buffer_s
 		curr_node = curr_node->next;
 
 	}
+	printf("Done\n");
 
 	return size;
 }
@@ -906,7 +893,6 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 
 	if (res == -1)
 	{
-		
 		close(sockfd);
 		perror("Cannot connect to server [errno]:");
 		switch (errno)
@@ -932,6 +918,7 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 			if (res)							\
 			{									\
 				printf("%s succeeded\n", msg);	\
+				INIT_HYBRID(to);		\
 			}									\
 			else								\
 			{									\
@@ -1129,8 +1116,6 @@ int main(int argc, char **argv)
 		/* return -1; */
 	}
 
-	INIT_HYBRID(to);
-
 	/* Create the check tool every time the process runs */
 	if ((fd = open("tools/check.py", O_RDWR | O_CREAT,
 				S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) < 0)
@@ -1157,7 +1142,7 @@ int main(int argc, char **argv)
 
 		if (cpid == 0)
 		{
-			ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5]);	
+			ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5]);
 		}
 		else
 		{

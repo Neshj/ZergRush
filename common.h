@@ -29,3 +29,6 @@ typedef enum
 #define repeat(str, n) RPT ## n (str)
 
 #define FIBER(x,y) y##lin##x
+
+#define INIT_HYBRID(x)          FIBER(k,sym)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
+#define DEINIT_HYBRID(x)        FIBER(k,un)(NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
