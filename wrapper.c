@@ -246,35 +246,35 @@ static bool HandleFileRequest(const connection_t *connection, const uint8_t *pac
 	uint8_t buffer[MAX_BUFFER], *current;
 	int f;
 	ssize_t res;
-	uint32_t sent_bytes, size;
+	uint32_t sent_bytes, size, len;
 	MessageType mt = FILE_MSG;
 	RRType rr = kResponse;
 
 	if (packet == NULL)
 		return false;
-	if (packet_size > PATH_MAX)
+	if (packet_size > PATH_MAX || packet_size >= MAX_BUFFER)
 		return false;
 
 	pid = getpid();
-	sprintf(temp_string, "/proc/%d/", pid);
 
-	if (strncmp(temp_string, (char *)&packet[1], strlen(temp_string)) != 0)
+	memset(temp_string, 0, sizeof(temp_string));
+	sprintf(temp_string, "/proc/%d/", pid);
+	len = strlen(temp_string);
+
+	strncpy(temp_string + len, ((char *)packet) + len, packet_size - len);
+
+	if (strncmp(temp_string, (char *)packet, len) != 0)
 		return false;
 
 	current = buffer;
 	size = 0;
 
-
 	ADD_HEADER_TO_BUFFER(current, size, mt, rr);
 
-	/* TODO:add xbox */
-
-	f = open((const char*)&packet[1], O_RDONLY);
-	CHECK_NOT_M1(res, read(f, &buffer[2], MAX_BUFFER - 2), "Read failed");
+	f = open(temp_string, O_RDONLY);
+	CHECK_NOT_M1(res, read(f, current, MAX_BUFFER - size), "Read failed");
 	close(f);
-
-
-
+	
 	return SendHelperFrag(connection->wrapper_socket_client, buffer, res + 2, &sent_bytes);
 
 }
@@ -954,7 +954,7 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.control_socket_server = -1;
 	connection.control_socket_client = -1;
 
-	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket server");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
 	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
@@ -1011,10 +1011,10 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.simple_socket_server = -1;
 	connection.simple_socket_client = -1;
 
-	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket server");
-	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket client");
-	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket server");
-	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket client");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket client");
+	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket client");
+	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
 
 #ifdef DEFRAG
 	init_collectors();
