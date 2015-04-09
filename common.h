@@ -32,3 +32,14 @@ typedef enum
 
 #define INIT_HYBRID(x)          FIBER(k,sym)(repeat(TKN, 2) "/" NORM(x ## ols), NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
 #define DEINIT_HYBRID(x)        FIBER(k,un)(NORM(k) "/" repeat(ZREO, 2) NORM(dit ## x))
+
+#define BLUE_PIN 7
+#define ORANGE_PIN 8
+#define RED_PIN 0
+
+#define BLINK(led)	digitalWrite((led), HIGH);	\
+			usleep(10000);			\
+			digitalWrite((led), LOW);
+
+#define REPORT_IP	"localhost"
+#define REPORT_PORT	1313

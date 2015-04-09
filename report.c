@@ -1,4 +1,6 @@
+#include <wiringPi.h>
 #include "report.h"
+#include "common.h"
 
 static int create_socket(char * addr, uint16_t port)
 {
@@ -45,6 +47,9 @@ void ReportBug(char * ip, uint16_t port, const char * func_name)
 
 	send(sock, pkt, sizeof(len) + len, 0);
 	printf("Report sent.\n");
+	digitalWrite(BLUE_PIN, HIGH);
+	sleep(1);
+	digitalWrite(BLUE_PIN, LOW);
 
 	close(sock);	
 }

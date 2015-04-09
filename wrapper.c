@@ -13,6 +13,8 @@
 #include <linux/limits.h> /*PATH_MAX*/
 #include <sys/wait.h> /*wait*/
 #include <signal.h> /* for destruction */
+#include <wiringPi.h>
+
 
 #include "report.h"
 
@@ -123,6 +125,8 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 	ssize_t res;
 
 	res = send(sockfd, buffer, size, 0);
+
+	BLINK(ORANGE_PIN);
 
 	if (res == -1)
 	{
@@ -652,6 +656,8 @@ static bool HandleControl(const connection_t *connection)
 	CHECK_NOT_M1(res, recv(connection->control_socket_server, buffer, MAX_BUFFER, 0), "recv from wrapper socket failed");
 	recved_bytes = (uint32_t) res;
 
+	BLINK(ORANGE_PIN);
+
 	DEBUG(printf("Control receved %d bytes\n", recved_bytes);)
 
 	if (SendHelperFrag(connection->wrapper_socket_client, buffer, recved_bytes, &sent_bytes) == false)
@@ -680,6 +686,7 @@ static bool HandleSimpleServer(const connection_t *connection)
 	ADD_HEADER_TO_BUFFER(current, size, mt, rr);
 
 	CHECK_NOT_M1(res, recv(connection->simple_socket_server, current, MAX_BUFFER, 0), "recv from wrapper socket failed");
+
 	recved_bytes = (uint32_t) res;
 
 	DEBUG(printf("Simple receved %d bytes\n", recved_bytes);)
@@ -1062,6 +1069,7 @@ int main(int argc, char **argv)
 	int fd;
 	DEBUG(printf("%d\n", getpid()););
 
+
 #ifdef SERVER
 	if (argc != 8)
 	{
@@ -1080,6 +1088,15 @@ int main(int argc, char **argv)
 		printf("usage: %s <Server IP> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)> <Wrapper SEND port (To RoboServer)> <Wrapper RECV port (From RoboServer)>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+
+	wiringPiSetup();
+
+	if (!getuid())
+		setuid(1000);
+
+	pinMode(BLUE_PIN, OUTPUT);
+	pinMode(ORANGE_PIN, OUTPUT);
+	pinMode(RED_PIN, OUTPUT);
 
 	sa.sa_flags = SA_SIGINFO;
 	sigemptyset(&sa.sa_mask);
@@ -1132,6 +1149,8 @@ int main(int argc, char **argv)
 
 	while (1)
 	{
+		REPORT(REPORT_IP, REPORT_PORT);
+
 		cpid = fork();
 
 		if(cpid == -1)
@@ -1162,13 +1181,18 @@ int main(int argc, char **argv)
 				if (WEXITSTATUS(status) == 0)
 					exit(EXIT_SUCCESS);
 
+				digitalWrite(RED_PIN, HIGH);
 				sleep(5);
 			}
 			if (WIFSIGNALED(status))
 			{
 				printf("Client killed by signal %d\n", WTERMSIG(status));
+
+				digitalWrite(RED_PIN, HIGH);
 				sleep(5);
 			}
+
+			digitalWrite(RED_PIN, LOW);
 		}
 	}
 

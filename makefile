@@ -2,7 +2,7 @@ CC=gcc
 
 # General compiler flags
 CFLAGS=-fstack-protector-all -s -fvisibility=hidden
-LFLAGS=-fPIE -pie -lrt
+LFLAGS=-fPIE -pie -lrt -lwiringPi
 
 # Sources list
 SOURCES = wrapper.c frag.c report.c 
