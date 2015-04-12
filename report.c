@@ -1,4 +1,6 @@
+#ifdef RPI
 #include <wiringPi.h>
+#endif
 #include "report.h"
 #include "common.h"
 
@@ -47,9 +49,7 @@ void ReportBug(char * ip, uint16_t port, const char * func_name)
 
 	send(sock, pkt, sizeof(len) + len, 0);
 	printf("Report sent.\n");
-	digitalWrite(BLUE_PIN, HIGH);
-	sleep(1);
-	digitalWrite(BLUE_PIN, LOW);
+	BLINK(GREEN_PIN, 1, 0);
 
-	close(sock);	
+	close(sock);
 }

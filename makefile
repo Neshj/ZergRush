@@ -1,8 +1,12 @@
 CC=gcc
 
 # General compiler flags
-CFLAGS=-fstack-protector-all -s -fvisibility=hidden
-LFLAGS=-fPIE -pie -lrt -lwiringPi
+CFLAGS=-fstack-protector-all -s -fvisibility=hidden -fPIC
+LFLAGS=-fPIE -pie -lrt
+
+ifdef RPI
+LFLAGS+= -lwirintPi
+endif
 
 # Sources list
 SOURCES = wrapper.c frag.c report.c 
@@ -23,7 +27,7 @@ clean:
 	@rm -f client
 	@echo "\033[1;34mClean\033[0m"
 
-server: export DEFS=-DSERVER -DDEFRAG
+server: export DEFS=-DSERVER -DDEFRAG -DRPI $(A)
 
 # Link the executable
 server: $(SERV_OBJECTS)
@@ -34,7 +38,7 @@ server: $(SERV_OBJECTS)
 	@echo "Compiling \033[0;31m$<\033[0m"
 	@$(CC) $(CFLAGS) -c $< -o $@ $(DEFS)
 
-client: export DEFS=-DDEFRAG
+client: export DEFS=-DDEFRAG -DRPI $(A)
 
 # Link the executable
 client: $(CLIENT_OBJECTS)

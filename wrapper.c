@@ -13,8 +13,10 @@
 #include <linux/limits.h> /*PATH_MAX*/
 #include <sys/wait.h> /*wait*/
 #include <signal.h> /* for destruction */
-#include <wiringPi.h>
 
+#ifdef RPI
+#include <wiringPi.h>
+#endif
 
 #include "report.h"
 
@@ -126,7 +128,7 @@ static inline bool SendHelper(int sockfd, const uint8_t *buffer, uint32_t size, 
 
 	res = send(sockfd, buffer, size, 0);
 
-	BLINK(ORANGE_PIN);
+	BLINK(ORANGE_PIN, 0, NORMAL_BLINK);
 
 	if (res == -1)
 	{
@@ -233,8 +235,6 @@ static bool HandleKARequest(const connection_t *connection, const uint8_t *packe
 	payload = packet;
 
 	GET_FROM_BUFFER(payload, size);
-
-	printf("%d %s\n", size, payload);
 
 	return SendKA(connection, payload, size, kResponse );
 }
@@ -656,7 +656,7 @@ static bool HandleControl(const connection_t *connection)
 	CHECK_NOT_M1(res, recv(connection->control_socket_server, buffer, MAX_BUFFER, 0), "recv from wrapper socket failed");
 	recved_bytes = (uint32_t) res;
 
-	BLINK(ORANGE_PIN);
+	BLINK(ORANGE_PIN, 0, NORMAL_BLINK);
 
 	DEBUG(printf("Control receved %d bytes\n", recved_bytes);)
 
@@ -935,7 +935,7 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 
 #ifdef SERVER
 
-static void ServerTransferLoop(const char *server_ip, const char *port1, const char *port2, const char *port3, const char *port4, const char *port5, const char *port6)
+static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, const char *port1, const char *port2, const char *port3, const char *port4, const char *port5, const char *port6)
 {
 	connection_t connection;
 	struct pollfd ufds[3];
@@ -948,9 +948,9 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.control_socket_server = -1;
 	connection.control_socket_client = -1;
 
-	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket client");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, controller_ip, port1), "Server: Init simple socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
-	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket client");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, robot_ip, port3), "Server: Init wrapper socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
 	CHECK_RESULT(InitSimpleSocketClient(&connection.control_socket_client, "localhost", port5), "Server: Init contorl socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.control_socket_server, port6), "Server: Init contorl socket server");
@@ -1005,7 +1005,7 @@ static void ServerTransferLoop(const char *server_ip, const char *port1, const c
 	connection.simple_socket_server = -1;
 	connection.simple_socket_client = -1;
 
-	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, server_ip, port1), "Server: Init simple socket client");
+	CHECK_RESULT(InitSimpleSocketClient(&connection.simple_socket_client, "localhost", port1), "Server: Init simple socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
 	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, server_ip, port3), "Server: Init wrapper socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
@@ -1071,13 +1071,13 @@ int main(int argc, char **argv)
 
 
 #ifdef SERVER
-	if (argc != 8)
+	if (argc != 9)
 	{
-		printf("usage: %s <Server IP> <Simple SEND port (To Controlling Station)> <Simple RECV port (From controlling station)> <Wrapper SEND port (To Robot client)> <Wrapper RECV port (From Robot client)> <Control SEND port> <Control RECV port>\n", argv[0]);
+		printf("usage: %s <Controller IP> <Robot IP> <Simple SEND port (To Controlling Station)> <Simple RECV port (From controlling station)> <Wrapper SEND port (To Robot client)> <Wrapper RECV port (From Robot client)> <Control SEND port> <Control RECV port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7] );
+	ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] );
 #else
 	pid_t cpid, w;
 	int status;
@@ -1149,8 +1149,6 @@ int main(int argc, char **argv)
 
 	while (1)
 	{
-		REPORT(REPORT_IP, REPORT_PORT);
-
 		cpid = fork();
 
 		if(cpid == -1)
@@ -1181,19 +1179,17 @@ int main(int argc, char **argv)
 				if (WEXITSTATUS(status) == 0)
 					exit(EXIT_SUCCESS);
 
-				digitalWrite(RED_PIN, HIGH);
-				sleep(5);
+				BLINK(RED_PIN, 5, 0); /* digitalWrite(RED_PIN, HIGH); */
 			}
 			if (WIFSIGNALED(status))
 			{
 				printf("Client killed by signal %d\n", WTERMSIG(status));
 
-				digitalWrite(RED_PIN, HIGH);
-				sleep(5);
+				BLINK(RED_PIN, 5, 0); /* digitalWrite(RED_PIN, HIGH); */
 			}
-
-			digitalWrite(RED_PIN, LOW);
 		}
+
+		REPORT(REPORT_IP, REPORT_PORT);
 	}
 
 	destructor_handler(0, NULL, NULL);
