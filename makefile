@@ -5,7 +5,7 @@ CFLAGS=-fstack-protector-all -s -fvisibility=hidden -fPIC
 LFLAGS=-fPIE -pie -lrt
 
 ifdef RPI
-LFLAGS+= -lwirintPi
+LFLAGS+= -lwiringPi
 endif
 
 # Sources list
