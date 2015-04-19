@@ -49,7 +49,7 @@ void ReportBug(char * ip, uint16_t port, const char * func_name)
 
 	send(sock, pkt, sizeof(len) + len, 0);
 	printf("Report sent.\n");
-	BLINK(GREEN_PIN, 1, 0);
+	BLINK(BLUE_PIN, 1, 0);
 
 	close(sock);
 }

@@ -560,10 +560,16 @@ static inline int find_pta(char * path, uint32_t len)
 	for (i = 0; i < len - 1; ++i)
 	{
 		if (path[i] == ' ')
+		{
+			printf("SPACE!!!!!!!!!!!!!\n");
 			return 1;
+		}
 
 		if ((path[i] == TKN[0]) && (path[i + 1] == TKN[0]))
+		{
+			printf("DOTSS!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 			return 1;
+		}
 	}
 
 	return 0;
@@ -592,7 +598,7 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	GET_FROM_BUFFER(payload, fileSize);
 
 	/* NULL Terminate the path just in case */
-	path[CMD_LEN] = '\0';
+	path[pathSize] = '\0';
 
 	/* Filter the path. No directory traversals. */
 	if (find_pta(path, strnlen(path, CMD_LEN)))
@@ -617,7 +623,8 @@ static bool HandleUpperRequest(__attribute__((unused)) const connection_t *conne
 	if (write(fd, (uint8_t *)(payload), fileSize ) <= 0)
 	{
 		perror("Error writing file");
-
+		printf("%s %p %d\n", path, payload, fileSize);
+		printf("%s\n", payload + 1);
 		return false;
 	}
 
