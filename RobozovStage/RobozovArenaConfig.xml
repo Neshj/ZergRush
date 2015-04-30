@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RobozovArena>
+	<ArenaNetwork ip="100.0.0.1" rx_port="30000" />
+	<ServerNetwork ip="100.0.0.2" rx_port="30001" />
+	<RemotesNetwork subnet="100.1.0.0" />
+	<RobotsNetwork subnet="100.2.0.0" />
+	<Teams>
+		<team id="1" name="team1" Remote_ip="1" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="1" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="1" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="2" name="team2" Remote_ip="2" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="2" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="2" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="3" name="team3" Remote_ip="3" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="3" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="3" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="4" name="team4" Remote_ip="4" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="4" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="4" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="5" name="team5" Remote_ip="5" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="5" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="5" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="6" name="team6" Remote_ip="6" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="6" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="6" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+		<team id="7" name="team7_debug" Remote_ip="7" server_remote_rx_port="10001" server_remote_tx_port="10001" 
+		Robot_ip="7" server_robot_data_rx_port="10002" server_robot_data_tx_port="10002"
+		Server_ip="7" server_robot_ctrl_rx_port="10002" server_robot_ctrl_tx_port="10002" />
+	</Teams>
+</RobozovArena>

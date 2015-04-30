@@ -1,0 +1,12 @@
+eclipse.preferences.version=1
+encoding/EventDrivenThread.py=utf-8
+encoding/GameThread.py=utf-8
+encoding/LogicThread.py=utf-8
+encoding/MainStageThread.py=utf-8
+encoding/RobozovArenaConfig.py=utf-8
+encoding/RobozovConfigLoader.py=utf-8
+encoding/RobozovStageMain.py=utf-8
+encoding/ServerLauncher.py=utf-8
+encoding/TimerThread.py=utf-8
+encoding/Tournament.py=utf-8
+encoding/__init__.py=utf-8

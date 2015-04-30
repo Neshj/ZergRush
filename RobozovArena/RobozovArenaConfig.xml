@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RobozovArena>
+	<ArenaNetwork ip="100.0.0.1" rx_port="30000" />
+	<ServerNetwork ip="100.0.0.2" rx_port="30001" />
+	<RemotesNetwork subnet="100.1.0.0" />
+	<RobotsNetwork subnet="100.2.0.0" />
+	<Teams>
+		<team id="1" name="team1" Remote_ip="1" Remote_rx_port="10001" Robot_ip="1" Robot_rx_port="10002"/>
+		<team id="2" name="team2" Remote_ip="2" Remote_rx_port="10001" Robot_ip="2" Robot_rx_port="10002"/>
+		<team id="3" name="team3" Remote_ip="3" Remote_rx_port="10001" Robot_ip="3" Robot_rx_port="10002"/>
+		<team id="4" name="team4" Remote_ip="4" Remote_rx_port="10001" Robot_ip="4" Robot_rx_port="10002"/>
+		<team id="5" name="team5" Remote_ip="5" Remote_rx_port="10001" Robot_ip="5" Robot_rx_port="10002"/>
+	</Teams>
+</RobozovArena>

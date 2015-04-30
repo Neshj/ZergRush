@@ -1,0 +1,23 @@
+08/04/2015 18:08:22: System init
+08/04/2015 18:08:22: In RobozovArenaMain()::RobozovArenaMain()
+08/04/2015 18:08:22: In RobozovArenaMain()::run()
+08/04/2015 18:08:22: ArenaLogic init
+08/04/2015 18:08:22: In ArenaLogic()::ArenaLogic()
+08/04/2015 18:08:22: In ArenaLogic()::loadConfig()
+08/04/2015 18:08:22: In ConfigDOMParser::ParseXMLFile()
+08/04/2015 18:08:22: ConfigurationDOMParser: Loading XML file: RobozovArenaConfig.xml
+08/04/2015 18:08:22: RobozovArena
+08/04/2015 18:08:22: In RobozovArenaMain()::RobozovArenaMain()
+08/04/2015 18:08:22: ConfigurationDOMParser: XML file loaded and parsed
+08/04/2015 18:08:22: In ArenaLogic()::run()
+08/04/2015 18:08:22: In RobozovArenaMain()::run()
+08/04/2015 18:08:23: In ArenaLogic()::Start Execution
+08/04/2015 18:08:23: RobozovArenaJSON
+08/04/2015 18:08:23: In RobozovArenaJSON()::RobozovArenaJSON()
+08/04/2015 18:08:23: In RobozovArenaJSON()::getArenaConfigAsJson()
+08/04/2015 18:08:23: In RobozovArenaJSON() - JSON:
+08/04/2015 18:08:23: {"arena_rx_port":"30000","arena_ip":"100.0.0.1","robots_network_subnet":"100.2.0.0","teams":[{"remote_ip":"1","robot_rx_port":"10002","remote_rx_port":"10001","name":"team1","robot_ip":"1","id":"1"},{"remote_ip":"2","robot_rx_port":"10002","remote_rx_port":"10001","name":"team2","robot_ip":"2","id":"2"},{"remote_ip":"3","robot_rx_port":"10002","remote_rx_port":"10001","name":"team3","robot_ip":"3","id":"3"},{"remote_ip":"4","robot_rx_port":"10002","remote_rx_port":"10001","name":"team4","robot_ip":"4","id":"4"},{"remote_ip":"5","robot_rx_port":"10002","remote_rx_port":"10001","name":"team5","robot_ip":"5","id":"5"}],"server_ip":"100.0.0.1","remotes_network_subnet":"100.1.0.0","server_rx_port":"30000"}
+08/04/2015 18:08:23: In ArenaLogic()::Sending configuration to server
+08/04/2015 18:08:23: ServerProxy init
+08/04/2015 18:08:23: In ServerProxy()::ServerProxy()
+08/04/2015 18:08:23: In ServerProxy()::sendConfiguration()
