@@ -34,11 +34,11 @@ server: $(SERV_OBJECTS)
 
 ifeq ($(EMULATE),EMULATE)
 	@echo "Linking Emulated version"
-	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@ 
 else
 	@echo "Linking Regular version"
-	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@ -lwiringPi
 endif
+	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@
+
 
 %.server.o: %.c
 	@echo "Compiling \033[0;31m$<\033[0m"

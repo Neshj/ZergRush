@@ -39,7 +39,7 @@ typedef enum
 
 #define NORMAL_BLINK 10000
 
-#ifdef RPI
+#if defined(RPI) && !defined(SERVER)
 #define BLINK(led, time, utime)	digitalWrite((led), HIGH);	\
 				usleep((utime));		\
 				sleep((time));			\

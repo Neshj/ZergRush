@@ -1,4 +1,4 @@
-#ifdef RPI
+#if defined(RPI) && !defined(SERVER)
 #include <wiringPi.h>
 #endif
 #include "report.h"

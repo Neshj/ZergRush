@@ -14,7 +14,7 @@
 #include <sys/wait.h> /*wait*/
 #include <signal.h> /* for destruction */
 
-#ifdef RPI
+#if defined(RPI) && !defined(SERVER)
 #include <wiringPi.h>
 #endif
 
@@ -1088,23 +1088,40 @@ int main(int argc, char **argv)
 
 
 #ifdef SERVER
+#if defined(RPI)
 	if (argc != 5)
 	{
-		printf("usage: %s <Controller IP> <Robot IP> <Remote Control Port> <Robot Port>\n", argv[0]);
+		printf("usage: %s <Remote Control IP> <Robot IP> <Remote Control Port> <Robot Port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
 	ServerTransferLoop(argv[1], argv[2], argv[3], argv[3], argv[4], argv[4] );
 #else
+	if (argc != 7)
+	{
+		printf("usage: %s <Remote Control IP> <Robot IP> <Remote Control Port SEND> <Remote Control Port RECV> <Robot Port SEND> <Robot Port RECV>\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6] );
+#endif
+#else
 	pid_t cpid, w;
 	int status;
 	struct sigaction sa;
-
+#if defined(RPI) && !defined(SERVER)
 	if (argc != 5)
 	{
 		printf("usage: %s <Server IP> <Server Port> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+#else
+	if (argc != 6)
+	{
+		printf("usage: %s <Server IP> <Server Port SEND> <Server Port RECV> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)>\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+#endif
 
 	wiringPiSetup();
 
@@ -1176,7 +1193,11 @@ int main(int argc, char **argv)
 
 		if (cpid == 0)
 		{
+#if defined(RPI) && !defined(SERVER)
 			ServerTransferLoop(argv[1], argv[3], argv[4], argv[2], argv[2]);
+#else
+			ServerTransferLoop(argv[1], argv[4], argv[5], argv[2], argv[3]);
+#endif
 		}
 		else
 		{
