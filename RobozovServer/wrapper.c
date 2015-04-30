@@ -942,7 +942,7 @@ static bool InitSimpleSocketClient(int *sock_result, const char *hostIP, const c
 
 #ifdef SERVER
 
-static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, const char *port1, const char *port2, const char *port3, const char *port4, const char *port5, const char *port6)
+static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, const char *port1, const char *port2, const char *port3, const char *port4)
 {
 	connection_t connection;
 	struct pollfd ufds[3];
@@ -959,8 +959,10 @@ static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, 
 	CHECK_RESULT(InitSimpleSocketServer(&connection.simple_socket_server, port2), "Server: Init simple socket server");
 	CHECK_RESULT(InitSimpleSocketClient(&connection.wrapper_socket_client, robot_ip, port3), "Server: Init wrapper socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.wrapper_socket_server, port4), "Server: Init wrapper socket server");
+#ifdef CONTROL
 	CHECK_RESULT(InitSimpleSocketClient(&connection.control_socket_client, "localhost", port5), "Server: Init contorl socket client");
 	CHECK_RESULT(InitSimpleSocketServer(&connection.control_socket_server, port6), "Server: Init contorl socket server");
+#endif
 
 
 #ifdef DEFRAG
@@ -974,12 +976,18 @@ static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, 
 	
 	ufds[1].fd = connection.simple_socket_server;
 	ufds[1].events = POLLIN;
+#ifdef CONTROL
 	ufds[2].fd = connection.control_socket_server;
 	ufds[2].events = POLLIN;
+#endif
 
 	while (1)
 	{
+#ifdef CONTROL
 		CHECK_NOT_M1(rv, poll(ufds, 3, 10000), "Transfer loop - poll failed");
+#else
+		CHECK_NOT_M1(rv, poll(ufds, 2, 10000), "Transfer loop - poll failed");
+#endif
 
 		if (rv == 0) /*Timeout!*/
 		{
@@ -991,9 +999,11 @@ static void ServerTransferLoop(const char *controller_ip, const char *robot_ip, 
 			if (ufds[0].revents & POLLIN)
 				HandleWrapperServer(&connection);
 			if (ufds[1].revents & POLLIN)
-				HandleSimpleServer(&connection);	
+				HandleSimpleServer(&connection);
+#ifdef CONTROL	
 			if (ufds[2].revents & POLLIN)
 				HandleControl(&connection);
+#endif
 		}
 
 	}
@@ -1078,21 +1088,21 @@ int main(int argc, char **argv)
 
 
 #ifdef SERVER
-	if (argc != 9)
+	if (argc != 5)
 	{
-		printf("usage: %s <Controller IP> <Robot IP> <Simple SEND port (To Controlling Station)> <Simple RECV port (From controlling station)> <Wrapper SEND port (To Robot client)> <Wrapper RECV port (From Robot client)> <Control SEND port> <Control RECV port>\n", argv[0]);
+		printf("usage: %s <Controller IP> <Robot IP> <Remote Control Port> <Robot Port>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] );
+	ServerTransferLoop(argv[1], argv[2], argv[3], argv[3], argv[4], argv[4] );
 #else
 	pid_t cpid, w;
 	int status;
 	struct sigaction sa;
 
-	if (argc != 6)
+	if (argc != 5)
 	{
-		printf("usage: %s <Server IP> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)> <Wrapper SEND port (To RoboServer)> <Wrapper RECV port (From RoboServer)>\n", argv[0]);
+		printf("usage: %s <Server IP> <Server Port> <Simple SEND port (To Robot controller process)> <Simple RECV port (from Robot controller process)>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
@@ -1166,7 +1176,7 @@ int main(int argc, char **argv)
 
 		if (cpid == 0)
 		{
-			ServerTransferLoop(argv[1], argv[2], argv[3], argv[4], argv[5]);
+			ServerTransferLoop(argv[1], argv[3], argv[4], argv[2], argv[2]);
 		}
 		else
 		{
