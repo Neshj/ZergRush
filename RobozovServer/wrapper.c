@@ -821,6 +821,7 @@ static bool HandleWrapperServer(const connection_t *connection)
 static bool InitSimpleSocketServer(int *sock_result, const char *hostPort)
 {	
 	int sockfd, res;
+	unsigned int rcvbuf = RCVBUF_SIZE;
 	struct addrinfo hints, *result;
 
 	*sock_result = -1;
@@ -861,6 +862,23 @@ static bool InitSimpleSocketServer(int *sock_result, const char *hostPort)
 	freeaddrinfo(result);
 
 	*sock_result = sockfd;
+
+/* 128KB */
+#if RCVBUF_SIZE <=  131072
+	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0)
+	{
+		perror("Error in setting maximum receive buffer size");
+
+		return false;
+	}
+#else
+	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf, sizeof(rcvbuf)) < 0)
+	{
+		perror("Error in setting maximum receive buffer size. Run as sudo? ");
+
+		return false;
+	}
+#endif
 
 	return true;
 }

@@ -1,4 +1,5 @@
 #define MAX_PACKET_TOTAL (1024 * 16)
+#define RCVBUF_SIZE (1024 * 128)
 #define MAX_PACKET_SIZE 64 /* 823 */
 
 typedef struct hdr_t
