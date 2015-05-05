@@ -11,28 +11,21 @@ SERVER_PROCESS_PATH = "./server"
 class RoboServer():
 
     # Constructor
-    def __init__(self, team_name, ip, tx_port_remote, rx_port_remote, tx_port_client, rx_port_client, tx_port_control, rx_port_control):
+    def __init__(self, team_name, remote_ip, robot_ip, remote_port, robot_port):
 
-        self.team_name      = team_name
-        self.ip             = ip
+        self.team_name		= team_name
+        self.remote_ip          = remote_ip
+	self.robot_ip		= robot_ip
 
         # Ports for control messages to robot
-        self.rx_port_control = str(rx_port_control)
-        self.tx_port_control = str(tx_port_control)
+        self.robot_port = robot_port
 
         # Ports for communication with driver's remote
-        self.rx_port_remote = str(rx_port_remote)
-        self.tx_port_remote = str(tx_port_remote)
-
-        # Ports for communication with client on the robot
-        self.rx_port_client  = str(rx_port_client)
-        self.tx_port_client  = str(tx_port_client)
+        self.remote_port = remote_port
 
     def Launch(self):
-        cmd  =  [SERVER_PROCESS_PATH, self.ip,              \
-                self.tx_port_remote, self.rx_port_remote,   \
-                self.tx_port_client , self.rx_port_client,  \
-                self.tx_port_control , self.rx_port_control]
+        cmd  =  [SERVER_PROCESS_PATH, self.remote_ip, self.robot_ip, \
+                self.remote_port, self.robot_port]
 
         print cmd
 

@@ -38,6 +38,7 @@ else
 	@echo "Linking Regular version"
 endif
 	@$(CC) $(SERV_OBJECTS) $(LFLAGS) -o $@
+	@cp server ../RobozovStage
 
 
 %.server.o: %.c

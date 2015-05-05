@@ -35,13 +35,10 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         # build a server for each team
         for team_config in event_data: 
             server = RoboServer(team_config['name'], \
-                                team_config['Server_ip'], \
-                                team_config['server_remote_tx_port'], \
-                                team_config['server_remote_rx_port'], \
-                                team_config['server_robot_data_tx_port'], \
-                                team_config['server_robot_data_rx_port'], \
-                                team_config['server_robot_ctrl_tx_port'], \
-                                team_config['server_robot_ctrl_rx_port'])
+				team_config['Remote_ip'], \
+				team_config['Robot_ip'], \
+                                team_config['server_remote_port'], \
+                                team_config['server_robot_port'])
             
             # add to running servers
             self.running_servers.append(server)
