@@ -25,6 +25,7 @@ ID_GAME_NEW=101
 ID_GAME_STOP=102
 ID_TOURNAMENT_SAVE=103
 ID_SPLITTER=300
+ID_EXPLOITS_WINDOW=1337
 
 
 LIST_FONT_SIZE = 12
@@ -80,6 +81,10 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnNewGame, m_new_game)
         m_stop_game = menu.Append(ID_GAME_STOP, "&Stop Game\tAlt-S", "Stop the current game.")
         self.Bind(wx.EVT_MENU, self.OnStopGame, m_stop_game)
+
+        m_exploits = menu.Append(ID_EXPLOITS_WINDOW, "&Exploits...\tAlt-E", "Send an exploit to a team...")
+        self.Bind(wx.EVT_MENU, self.OnExploits, m_exploits)
+
         menuBar.Append(menu, "Tournament")
 
         menu = wx.Menu()
@@ -137,6 +142,7 @@ class MainFrame(wx.Frame):
         self.Bind(EVT_TIMER_CALLBACK,self.OnTimerCallback)
         self.time_thread = TimerThread(-1,"",self)
         self.time_thread.start() # after 1 second, the callback function will be called
+        self.current_game = 0
 
     
     def ResetTeamsList(self):
@@ -178,14 +184,28 @@ class MainFrame(wx.Frame):
     def OnNewGame(self,event):
         print ("New Game")
         
-        current_game = 0
+        # current_game = 0
         if len(self.match_list) > 0:
-            match_tup = self.match_list[current_game]   
+            match_tup = self.match_list[self.current_game]
+
+            self.p2.Select(self.current_game, True)
+            item = self.p2.GetFirstSelected()
+            self.p2.SetItemBackgroundColour(item, "Red")
+            self.p2.Select(self.current_game, False)
+
             self.bl_object.StartNewGame(match_tup)
+
+    def OnExploits(self, event):
+        print ("Exploits...")
+        frame = wx.Frame(None, -1)
+	c = wx.Choice(frame, -1, choices=["red", "blue", "green"])
+	frame.Show()
     
     def OnStopGame(self,event):
         print ("Stopping Game")
         self.bl_object.TerminateGame()
+
+        self.current_game += 1
 
     def OnNewTournament(self,event):
         print ("New Tournament")
