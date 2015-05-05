@@ -14,20 +14,15 @@ from datetime import datetime
 
 import wx.lib.newevent as NE
 
-from GameFrame import GameFrame
-
 TimerEvent, EVT_TIMER_CALLBACK = NE.NewEvent()
 
 aboutText = """<p>Sorry, there is no information about this program. It is
 running on version %(wxpy)s of <b>wxPython</b> and %(python)s of <b>Python</b>.
 See <a href="http://wiki.wxpython.org">wxPython Wiki</a></p>"""
 
-ID_TOURNAMENT_NEW=100
-ID_GAME_NEW=101
-ID_GAME_STOP=102
-ID_TOURNAMENT_SAVE=103
+
 ID_SPLITTER=300
-ID_EXPLOITS_WINDOW=1337
+
 
 
 LIST_FONT_SIZE = 12
@@ -58,7 +53,7 @@ class AboutBox(wx.Dialog):
         self.CentreOnParent(wx.BOTH)
         self.SetFocus()
 
-class MainFrame(wx.Frame):
+class GameFrame(wx.Frame):
     def __init__(self, title, bl_object):
 
         self.bl_object = bl_object
@@ -67,33 +62,7 @@ class MainFrame(wx.Frame):
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(350,200))
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        menuBar = wx.MenuBar()
 
-        menu = wx.Menu()
-        m_exit = menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Close window and exit program.")
-        self.Bind(wx.EVT_MENU, self.OnClose, m_exit)
-        menuBar.Append(menu, "&File")
-
-        menu = wx.Menu()
-        m_new_tournament = menu.Append(ID_TOURNAMENT_NEW, "New &Tournament\tAlt-T", "Start a new Tournament.")
-        self.Bind(wx.EVT_MENU, self.OnNewTournament, m_new_tournament)
-        m_save_tournament = menu.Append(ID_TOURNAMENT_SAVE, "&Save Tournament\tAlt-S", "Save the Tournament.")
-        self.Bind(wx.EVT_MENU, self.OnSaveTournament, m_save_tournament)
-        m_new_game = menu.Append(ID_GAME_NEW, "&New Game\tAlt-N", "Start a new game.")
-        self.Bind(wx.EVT_MENU, self.OnNewGame, m_new_game)
-        m_stop_game = menu.Append(ID_GAME_STOP, "&Stop Game\tAlt-S", "Stop the current game.")
-        self.Bind(wx.EVT_MENU, self.OnStopGame, m_stop_game)
-
-        m_exploits = menu.Append(ID_EXPLOITS_WINDOW, "&Exploits...\tAlt-E", "Send an exploit to a team...")
-        self.Bind(wx.EVT_MENU, self.OnExploits, m_exploits)
-
-        menuBar.Append(menu, "Tournament")
-
-        menu = wx.Menu()
-        m_about = menu.Append(wx.ID_ABOUT, "&About", "Information about this program")
-        self.Bind(wx.EVT_MENU, self.OnAbout, m_about)
-        menuBar.Append(menu, "&Help")
-        self.SetMenuBar(menuBar)
 
         self.statusbar = self.CreateStatusBar()
         self.stage_status = 'Ready'
@@ -129,14 +98,17 @@ class MainFrame(wx.Frame):
         self.p2.SetFont(font)
 
         # Arrange the teams list control
-        self.ResetTeamsList()
-        self.UpdateTeamsList()
-
-        # Arrange the game list control
-        self.ResetGameList()
 
         self.sizer.Add(self.splitter,1,wx.EXPAND)
         self.SetSizer(self.sizer)
+
+        w = wx.DisplaySize()
+        w = wx.Size(w[0]-100,w[1]/6)
+        print ("W=" + str(w))
+        self.progress = wx.Gauge(self, -1, 100,size=w)  #create a progress bar with max 100
+        self.progress.SetSize(w)
+        self.sizer.Add(self.progress,1)
+        self.ResetProgressBar()
 
         size = wx.DisplaySize()
         self.SetSize(size)
@@ -183,51 +155,6 @@ class MainFrame(wx.Frame):
             self.time_thread.CloseThread()
             self.Destroy()
 
-    def OnNewGame(self,event):
-        print ("New Game")
-
-        game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
-        game_frame.Show()
-
-        # current_game = 0
-        if len(self.match_list) > 0:
-            match_tup = self.match_list[self.current_game]
-
-            self.p2.Select(self.current_game, True)
-            item = self.p2.GetFirstSelected()
-            self.p2.SetItemBackgroundColour(item, "Red")
-            self.p2.Select(self.current_game, False)
-
-            self.bl_object.StartNewGame(match_tup)
-
-    def OnExploits(self, event):
-        print ("Exploits...")
-        frame = wx.Frame(None, -1)
-	c = wx.Choice(frame, -1, choices=["red", "blue", "green"])
-	frame.Show()
-
-    def OnStopGame(self,event):
-        print ("Stopping Game")
-        self.bl_object.TerminateGame()
-
-        self.current_game += 1
-
-    def OnNewTournament(self,event):
-        print ("New Tournament")
-        self.ResetGameList()
-        self.match_list = self.bl_object.NewTournament()
-
-        for i in range(0,len(self.match_list)):
-            self.AddMatchData(i + 1, self.match_list[i])
-
-    def OnSaveTournament(self,event):
-        print ("Save Tournament")
-
-    def AddMatchData(self,match_num,match_data):
-        index = self.p2.InsertStringItem(sys.maxint, str(match_num))
-        self.p2.SetStringItem(index, 1, match_data[1])
-        self.p2.SetStringItem(index, 2, match_data[3])
-        self.p2.SetStringItem(index, 3, match_data[4])
 
 
     def OnAbout(self, event):
@@ -238,6 +165,19 @@ class MainFrame(wx.Frame):
     def OnTimerCallback(self, event):
         str_time = datetime.now().strftime('%H:%M:%S')
         self.statusbar.SetStatusText(str_time + " : " + self.stage_status)
+
+        # Update the progressbar
+        self.UpdateProgressBar()
+
+    def ResetProgressBar(self):
+        self.progress_count = 0
+        self.progress.SetValue(self.progress_count)
+        wx.Yield()
+
+    def UpdateProgressBar(self):
+        self.progress_count += 1
+        self.progress.SetValue(self.progress_count)
+        wx.Yield()
 
     def UpdateTimeCallback(self):
         #time_str = datetime.now().strftime('%H:%M:%S')

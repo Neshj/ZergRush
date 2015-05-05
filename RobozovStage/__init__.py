@@ -5,7 +5,7 @@
 from RobozovStageMain import *
 
 class RoboEntryPoint:
-     
+
     def __init__(self):
         print ("Robozov init")
 

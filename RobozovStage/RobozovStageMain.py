@@ -46,21 +46,21 @@ class RobozovStageMain:
         # Close threads
         self.CloseThreads()
         print ("Main thread is done")
-        
+
         self.SaveDataBase()
         print ("Database was saved")
-        
+
     def StartThreads(self):
         print ("Starting Threads")
-        
+
         self.threads = []
-        
+
         self.main_stage_thread = MainStageThread.MainStageThread(1,"MainLogicThread")
         self.threads.append(self.main_stage_thread)
-        
+
         self.game_thread = GameThread.GameThread(2,"GameThread")
         self.threads.append(self.game_thread)
-        
+
         for t in self.threads:
             t.start()
 
@@ -68,21 +68,22 @@ class RobozovStageMain:
 
     def CloseThreads(self):
         print ("Closing Threads")
-        
+
         for t in self.threads:
             t.CloseThread()
             t.join()
-            
+
         print ("All threads finished")
-     
-    # Business Logic functions 
-        
+
+    # Business Logic functions
+
     def SaveDataBase(self):
-        pickle.dump( self.match_list, open( "config_save.p", "wb" ) )
-        
+        #pickle.dump( self.match_list, open( "config_save.p", "wb" ) )
+        print ("save db")
+
     def GetConfig(self):
         return (self.config.getConfigData())
-    
+
     def NewTournament(self):
         self.match_list = TournamentUtility().GenerateTournament(self.config.getConfigData())
         print (self.match_list)
@@ -92,21 +93,20 @@ class RobozovStageMain:
     def StartNewGame(self,match_tup):
         print "Starting New Game!"
         print (match_tup)
-        
+
         # parse tuple to get team id's
         teams_in_play = []
         teams_in_play.append((int)(match_tup[0])) # 1st team id
         teams_in_play.append((int)(match_tup[2])) # 2nd team id
-        
+
         # collect teams configuration for launching their servers
         teams_config = []
         for team in teams_in_play:
             print "Team #%d is playing!" % team
             teams_config.append(self.config.getConfigData()["Teams"][team - 1]) # team - 1 => team number to list index
-        
+
         self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START_GAME, teams_config)
-        
+
     def TerminateGame(self):
         print "Terminating Current Game!"
         self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_TERMINATE_GAME, "Stop the game!")
-        
