@@ -6,7 +6,7 @@
 
 from subprocess import Popen, PIPE
 
-SERVER_PROCESS_PATH = "./server"
+SERVER_PROCESS_PATH = "../RobozovServer/server"
 
 class RoboServer():
 
@@ -14,8 +14,8 @@ class RoboServer():
     def __init__(self, team_name, remote_ip, robot_ip, remote_port, robot_port):
 
         self.team_name		= team_name
-        self.remote_ip          = remote_ip
-	self.robot_ip		= robot_ip
+        self.remote_ip      = remote_ip
+        self.robot_ip		= robot_ip
 
         # Ports for control messages to robot
         self.robot_port = robot_port

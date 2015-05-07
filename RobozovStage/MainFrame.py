@@ -186,9 +186,6 @@ class MainFrame(wx.Frame):
     def OnNewGame(self,event):
         print ("New Game")
 
-        game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
-        game_frame.Show()
-
         # current_game = 0
         if len(self.match_list) > 0:
             match_tup = self.match_list[self.current_game]
@@ -199,12 +196,18 @@ class MainFrame(wx.Frame):
             self.p2.Select(self.current_game, False)
 
             self.bl_object.StartNewGame(match_tup)
+            
 
+        game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
+        game_frame.Show()
+
+        
     def OnExploits(self, event):
         print ("Exploits...")
-        frame = wx.Frame(None, -1)
-	c = wx.Choice(frame, -1, choices=["red", "blue", "green"])
-	frame.Show()
+        #frame = wx.Frame(None, -1)
+	
+        #c = wx.Choice(frame, -1, choices=["red", "blue", "green"])
+	    #frame.Show()
 
     def OnStopGame(self,event):
         print ("Stopping Game")

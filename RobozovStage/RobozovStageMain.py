@@ -105,7 +105,11 @@ class RobozovStageMain:
             print "Team #%d is playing!" % team
             teams_config.append(self.config.getConfigData()["Teams"][team - 1]) # team - 1 => team number to list index
 
+        self.current_game_config = teams_config
         self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START_GAME, teams_config)
+
+    def GetCurrentGameConfig(self):
+        return (self.current_game_config)
 
     def TerminateGame(self):
         print "Terminating Current Game!"

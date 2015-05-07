@@ -22,10 +22,10 @@ See <a href="http://wiki.wxpython.org">wxPython Wiki</a></p>"""
 
 
 ID_SPLITTER=300
+LIST_FONT_SIZE = 10
 
+GAME_TIME = 90
 
-
-LIST_FONT_SIZE = 12
 filenames = ["Graphics/Robotzov_Text.png", "Graphics/Robotzov2_TextB.png"]
 
 class HtmlWindow(wx.html.HtmlWindow):
@@ -58,23 +58,20 @@ class GameFrame(wx.Frame):
 
         self.bl_object = bl_object
         self.config_data = self.bl_object.GetConfig()
-
+        
+        # Get the Current game config
+        self.current_game_config = self.bl_object.GetCurrentGameConfig()
+        
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(350,200))
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-
-
         self.statusbar = self.CreateStatusBar()
-        self.stage_status = 'Ready'
+        self.stage_status = 'Game'
         self.statusbar.SetStatusText(self.stage_status)
         self.statusbar.Show()
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        #self.m_text = wx.StaticText(self, -1, "Robozov 2 - Stage")
-        #self.m_text.SetFont(wx.Font(14, wx.SWISS, wx.NORMAL, wx.BOLD))
-        #self.m_text.SetSize(self.m_text.GetBestSize())
-        #self.sizer.Add(self.m_text,flag=wx.EXPAND|wx.CENTER|wx.TOP, border=10)
 
         img1 = wx.Image(filenames[1], wx.BITMAP_TYPE_ANY)
         w = wx.DisplaySize()[1]
@@ -83,9 +80,33 @@ class GameFrame(wx.Frame):
         self.sb1 = wx.StaticBitmap(self, -1, wx.BitmapFromImage(img1))
         self.sizer.Add(self.sb1,flag=wx.ALIGN_CENTER, border=10)
 
+        self.time_left = GAME_TIME
+        self.m_text_game = wx.StaticText(self, -1, "")
+        self.m_text_game.SetFont(wx.Font(22, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.sizer.Add(self.m_text_game,1,flag=wx.ALIGN_CENTER)
+        self.UpdateGameLabel()
+
+        w = wx.DisplaySize()
+        w = wx.Size(w[0]-100,w[1]/20)
+
+        self.splitter_text = wx.SplitterWindow(self, ID_SPLITTER, style=wx.SP_BORDER,size=w)
+        self.splitter_text.SetMinimumPaneSize(0)
+        
+        self.m_text_team_1 = wx.StaticText(self.splitter_text, -1, "Team 1: " + self.current_game_config[0]["name"],size=(w[0]/2,w[1]))
+        self.m_text_team_1.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.m_text_team_1.SetForegroundColour("Black")
+        #self.m_text_team_1.GetBestSize()
+        
+        self.m_text_team_2 = wx.StaticText(self.splitter_text, -1, "Team 2: " + self.current_game_config[1]["name"],size=(w[0]/2,w[1]))
+        self.m_text_team_2.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.m_text_team_2.SetForegroundColour("Red")
+        
+        self.splitter_text.SplitVertically(self.m_text_team_1, self.m_text_team_2)
+        
+        self.sizer.Add(self.splitter_text,1,flag=wx.EXPAND,border=10)
 
         self.splitter = wx.SplitterWindow(self, ID_SPLITTER, style=wx.SP_BORDER)
-        self.splitter.SetMinimumPaneSize(50)
+        self.splitter.SetMinimumPaneSize(100)
 
         self.p1 = wx.ListCtrl(self.splitter, -1, style=wx.LC_REPORT)
         self.p2 = wx.ListCtrl(self.splitter, -1, style=wx.LC_REPORT)
@@ -98,18 +119,15 @@ class GameFrame(wx.Frame):
         self.p2.SetFont(font)
 
         # Arrange the teams list control
+        self.ResetTeamsList()
+        self.sizer.Add(self.splitter,10,wx.EXPAND)
 
-        self.sizer.Add(self.splitter,1,wx.EXPAND)
-        self.SetSizer(self.sizer)
-
-        w = wx.DisplaySize()
-        w = wx.Size(w[0]-100,w[1]/6)
-        print ("W=" + str(w))
         self.progress = wx.Gauge(self, -1, 100,size=w)  #create a progress bar with max 100
-        self.progress.SetSize(w)
-        self.sizer.Add(self.progress,1)
+        self.sizer.Add(self.progress,2,wx.ALIGN_CENTRE)
         self.ResetProgressBar()
 
+        self.SetSizer(self.sizer)
+        
         size = wx.DisplaySize()
         self.SetSize(size)
 
@@ -121,9 +139,14 @@ class GameFrame(wx.Frame):
 
     def ResetTeamsList(self):
         self.p1.ClearAll()
-        self.p1.InsertColumn(0, 'Team ID', width=150)
-        self.p1.InsertColumn(1, 'Team Name', width=150)
-        self.p1.InsertColumn(2, 'Score', wx.LIST_FORMAT_RIGHT, 100)
+        self.p1.InsertColumn(0, 'From', width=100)
+        self.p1.InsertColumn(1, 'To', width=100)
+        self.p1.InsertColumn(2, 'Current message', wx.LIST_FORMAT_RIGHT, 250)
+        
+        self.p2.ClearAll()
+        self.p2.InsertColumn(0, 'From', width=100)
+        self.p2.InsertColumn(1, 'To', width=100)
+        self.p2.InsertColumn(2, 'Current message', wx.LIST_FORMAT_RIGHT, 250)
 
     def UpdateTeamsList(self):
         # Build a tuple for each team
@@ -138,12 +161,6 @@ class GameFrame(wx.Frame):
         self.p1.SetStringItem(index, 1, team_data[1])
         self.p1.SetStringItem(index, 2, team_data[2])
 
-    def ResetGameList(self):
-        self.p2.ClearAll()
-        self.p2.InsertColumn(0, 'Game Number', width=150)
-        self.p2.InsertColumn(1, 'Team 1', wx.LIST_FORMAT_RIGHT, 150)
-        self.p2.InsertColumn(2, 'Team 2', wx.LIST_FORMAT_RIGHT, 150)
-        self.p2.InsertColumn(3, 'Winner', wx.LIST_FORMAT_RIGHT, 100)
 
     def OnClose(self, event):
         dlg = wx.MessageDialog(self,
@@ -166,6 +183,11 @@ class GameFrame(wx.Frame):
         str_time = datetime.now().strftime('%H:%M:%S')
         self.statusbar.SetStatusText(str_time + " : " + self.stage_status)
 
+        self.time_left -= 1;
+        
+        # Update the game label
+        self.UpdateGameLabel()
+        
         # Update the progressbar
         self.UpdateProgressBar()
 
@@ -178,6 +200,11 @@ class GameFrame(wx.Frame):
         self.progress_count += 1
         self.progress.SetValue(self.progress_count)
         wx.Yield()
+        
+    def UpdateGameLabel(self):
+        (min,sec) = divmod(self.time_left, 60)
+        self.m_text_game.SetLabel("Game On! time left " + str(min) + ":" + str(sec))
+        self.m_text_game.SetForegroundColour("Blue")
 
     def UpdateTimeCallback(self):
         #time_str = datetime.now().strftime('%H:%M:%S')
