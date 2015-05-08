@@ -15,6 +15,7 @@ from datetime import datetime
 import wx.lib.newevent as NE
 
 TimerEvent, EVT_TIMER_CALLBACK = NE.NewEvent()
+GameEvent, EVT_GAME_CALLBACK = NE.NewEvent()
 
 aboutText = """<p>Sorry, there is no information about this program. It is
 running on version %(wxpy)s of <b>wxPython</b> and %(python)s of <b>Python</b>.
@@ -27,6 +28,7 @@ LIST_FONT_SIZE = 10
 GAME_TIME = 90
 EVT_START = 20
 EVT_STOP = 21
+EVT_ATTACK = 22
 
 
 filenames = ["Graphics/Robotzov_Text.png", "Graphics/Robotzov2_TextB.png"]
@@ -135,10 +137,15 @@ class GameFrame(wx.Frame):
         self.button_start.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
         self.Bind(wx.EVT_BUTTON, self.OnStartGame, id=EVT_START)
         
+        self.button_cyber = wx.Button(self, EVT_ATTACK, 'Cyber attack!')
+        self.button_cyber.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.Bind(wx.EVT_BUTTON, self.OnCyberAttack, id=EVT_ATTACK)
+        
         self.button_stop = wx.Button(self, EVT_STOP, 'Stop game',)
         self.button_stop.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
         
         buttons_sizer.Add(self.button_start,-1)
+        buttons_sizer.Add(self.button_cyber,-1)
         buttons_sizer.Add(self.button_stop,-1)
         self.sizer.Add(buttons_sizer,1,flag=wx.ALIGN_CENTER,border=10)
             
@@ -151,9 +158,14 @@ class GameFrame(wx.Frame):
     def OnStartGame(self,event):
         self.UpdateGameLabel()
         self.Bind(EVT_TIMER_CALLBACK,self.OnTimerCallback)
+        self.Bind(EVT_GAME_CALLBACK,self.OnGameEventCallback)
+        
         self.time_thread = TimerThread(-1,"",self)
         self.time_thread.start() # after 1 second, the callback function will be called
         self.current_game = 0
+
+    def OnCyberAttack(self,event):
+        print ("Attack")
 
     def ResetTeamsList(self):
         self.p1.ClearAll()
@@ -213,6 +225,9 @@ class GameFrame(wx.Frame):
         # Update the progressbar
         self.UpdateProgressBar()
 
+    def OnGameEventCallback(self, event):
+        print ("Game event")
+
     def ResetProgressBar(self):
         self.progress_count = 0
         self.progress.SetValue(self.progress_count)
@@ -232,4 +247,5 @@ class GameFrame(wx.Frame):
         #time_str = datetime.now().strftime('%H:%M:%S')
         wx.PostEvent(self,TimerEvent())
 
-
+    def UpdateGameEvent(self):
+        print ("Game event called")
