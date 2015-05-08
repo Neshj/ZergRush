@@ -14,6 +14,8 @@ from datetime import datetime
 
 import wx.lib.newevent as NE
 
+from Exploits import ExploitsDialog
+
 TimerEvent, EVT_TIMER_CALLBACK = NE.NewEvent()
 GameEvent, EVT_GAME_CALLBACK = NE.NewEvent()
 
@@ -166,6 +168,11 @@ class GameFrame(wx.Frame):
 
     def OnCyberAttack(self,event):
         print ("Attack")
+        ExploitsDialog(self, -1, 'Exploits Cyber Attack',self.bl_object).Show()
+        
+    def OnStopGame(self,event):
+        print ("Stopping Game")
+        self.bl_object.TerminateGame()
 
     def ResetTeamsList(self):
         self.p1.ClearAll()
@@ -205,8 +212,6 @@ class GameFrame(wx.Frame):
                 print ("time thread does not exits")
                 
             self.Destroy()
-
-
 
     def OnAbout(self, event):
         dlg = AboutBox()

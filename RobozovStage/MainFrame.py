@@ -81,12 +81,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnSaveTournament, m_save_tournament)
         m_new_game = menu.Append(ID_GAME_NEW, "&New Game\tAlt-N", "Start a new game.")
         self.Bind(wx.EVT_MENU, self.OnNewGame, m_new_game)
-        m_stop_game = menu.Append(ID_GAME_STOP, "&Stop Game\tAlt-S", "Stop the current game.")
-        self.Bind(wx.EVT_MENU, self.OnStopGame, m_stop_game)
-
-        m_exploits = menu.Append(ID_EXPLOITS_WINDOW, "&Exploits...\tAlt-E", "Send an exploit to a team...")
-        self.Bind(wx.EVT_MENU, self.OnExploits, m_exploits)
-
+  
         menuBar.Append(menu, "Tournament")
 
         menu = wx.Menu()
