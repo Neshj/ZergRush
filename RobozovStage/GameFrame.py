@@ -25,6 +25,9 @@ ID_SPLITTER=300
 LIST_FONT_SIZE = 10
 
 GAME_TIME = 90
+EVT_START = 20
+EVT_STOP = 21
+
 
 filenames = ["Graphics/Robotzov_Text.png", "Graphics/Robotzov2_TextB.png"]
 
@@ -81,10 +84,11 @@ class GameFrame(wx.Frame):
         self.sizer.Add(self.sb1,flag=wx.ALIGN_CENTER, border=10)
 
         self.time_left = GAME_TIME
-        self.m_text_game = wx.StaticText(self, -1, "")
+        self.m_text_game = wx.StaticText(self, -1, "Ready to Game")
         self.m_text_game.SetFont(wx.Font(22, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.m_text_game.SetForegroundColour("Blue")
         self.sizer.Add(self.m_text_game,1,flag=wx.ALIGN_CENTER)
-        self.UpdateGameLabel()
+        
 
         w = wx.DisplaySize()
         w = wx.Size(w[0]-100,w[1]/20)
@@ -122,20 +126,34 @@ class GameFrame(wx.Frame):
         self.ResetTeamsList()
         self.sizer.Add(self.splitter,10,wx.EXPAND)
 
-        self.progress = wx.Gauge(self, -1, 100,size=w)  #create a progress bar with max 100
+        self.progress = wx.Gauge(self, -1, 90,size=w)  #create a progress bar with max 100
         self.sizer.Add(self.progress,2,wx.ALIGN_CENTRE)
         self.ResetProgressBar()
 
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.button_start = wx.Button(self, EVT_START, 'Start game')
+        self.button_start.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
+        self.Bind(wx.EVT_BUTTON, self.OnStartGame, id=EVT_START)
+        
+        self.button_stop = wx.Button(self, EVT_STOP, 'Stop game',)
+        self.button_stop.SetFont(wx.Font(16, wx.SWISS, wx.NORMAL, wx.BOLD))
+        
+        buttons_sizer.Add(self.button_start,-1)
+        buttons_sizer.Add(self.button_stop,-1)
+        self.sizer.Add(buttons_sizer,1,flag=wx.ALIGN_CENTER,border=10)
+            
         self.SetSizer(self.sizer)
         
         size = wx.DisplaySize()
         self.SetSize(size)
 
+
+    def OnStartGame(self,event):
+        self.UpdateGameLabel()
         self.Bind(EVT_TIMER_CALLBACK,self.OnTimerCallback)
         self.time_thread = TimerThread(-1,"",self)
         self.time_thread.start() # after 1 second, the callback function will be called
         self.current_game = 0
-
 
     def ResetTeamsList(self):
         self.p1.ClearAll()
@@ -169,7 +187,11 @@ class GameFrame(wx.Frame):
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
-            self.time_thread.CloseThread()
+            try:
+                self.time_thread.CloseThread()
+            except AttributeError:
+                print ("time thread does not exits")
+                
             self.Destroy()
 
 
