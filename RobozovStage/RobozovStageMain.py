@@ -78,7 +78,7 @@ class RobozovStageMain:
     # Business Logic functions
 
     def SaveDataBase(self):
-        #pickle.dump( self.match_list, open( "config_save.p", "wb" ) )
+        pickle.dump( self.config, open( "config_save.p", "wb" ) )
         print ("save db")
 
     def GetConfig(self):
