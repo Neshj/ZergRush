@@ -133,6 +133,8 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.splitter,1,wx.EXPAND)
         self.SetSizer(self.sizer)
 
+        self.p1.Bind(wx.EVT_LEFT_DCLICK, self.ScoreEntry)
+
         size = wx.DisplaySize()
         self.SetSize(size)
 
@@ -227,6 +229,24 @@ class MainFrame(wx.Frame):
         self.p2.SetStringItem(index, 2, match_data[3])
         self.p2.SetStringItem(index, 3, match_data[4])
 
+    def ScoreEntry(self, event):
+        index = self.p1.GetFocusedItem()
+        
+        if (index != -1):
+            team_name = self.p1.GetItem(index,1).GetText()
+            team_score = self.p1.GetItem(index,2).GetText()
+            
+            dlg = wx.TextEntryDialog(self, 'Enter score for: ' + team_name,'Team score')
+            dlg.SetValue(team_score)
+            if dlg.ShowModal() == wx.ID_OK:
+                new_score = dlg.GetValue()
+                print ('You entered: %s\n' % dlg.GetValue())
+                self.p1.SetStringItem(index, 2, new_score)
+                
+                # Save the scores
+                
+                
+            dlg.Destroy()
 
     def OnAbout(self, event):
         dlg = AboutBox()
