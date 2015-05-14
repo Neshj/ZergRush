@@ -64,6 +64,8 @@ class MainFrame(wx.Frame):
         self.bl_object = bl_object
         self.config_data = self.bl_object.GetConfig()
 
+        self.scores_list = []
+
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(350,200))
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -135,6 +137,8 @@ class MainFrame(wx.Frame):
 
         self.p1.Bind(wx.EVT_LEFT_DCLICK, self.ScoreEntry)
 
+        
+
         size = wx.DisplaySize()
         self.SetSize(size)
 
@@ -159,6 +163,8 @@ class MainFrame(wx.Frame):
             self.AddTeamData(team_tup)
 
     def AddTeamData(self,team_data):
+        self.scores_list.append(team_data)
+        
         index = self.p1.InsertStringItem(sys.maxint, team_data[0])
         self.p1.SetStringItem(index, 1, team_data[1])
         self.p1.SetStringItem(index, 2, team_data[2])
@@ -244,6 +250,10 @@ class MainFrame(wx.Frame):
                 self.p1.SetStringItem(index, 2, new_score)
                 
                 # Save the scores
+                self.scores_list[index] = (self.scores_list[index][0], self.scores_list[index][1], int(new_score)) 
+                self.bl_object.SaveScores(self.scores_list)
+                
+                print (self.scores_list[index])
                 
                 
             dlg.Destroy()
