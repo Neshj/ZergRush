@@ -20,6 +20,7 @@ class RobozovStageMain:
 
         self._config_file_name = "RobozovArenaConfig.xml"
 
+        
     # Load configuration
     def LoadConfig(self):
         print ("RobozovMain load config")
@@ -77,9 +78,18 @@ class RobozovStageMain:
 
     # Business Logic functions
 
+    def SaveScores(self,scores_list):
+        # [0] = team_id
+        # [1] = team_name
+        # [2] = team_score
+        
+        self.saved_scores = scores_list
+        self.SaveDataBase()
+
     def SaveDataBase(self):
         pickle.dump( self.config, open( "config_save.p", "wb" ) )
-        print ("save db")
+        pickle.dump( self.saved_scores, open( "socres_save.p", "wb" ) )
+        print ("db saved")
 
     def GetConfig(self):
         return (self.config.getConfigData())
