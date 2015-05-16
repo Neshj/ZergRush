@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import EventDrivenThread
-from exploits import exploits_list
+from exploits.exploits_list import *
 from exploits.reporter import *
 from ServerLauncher import RoboServer
 
@@ -25,15 +25,15 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         self.servers = []
         
     def OnStart(self,event_data):
-        print ("MainStageThread::OnStart, data = " + event_data)
+        print ("MainStageThread::OnStart")
 
         self.bl_object = event_data
     
     def OnStop(self,event_data):
-        print ("MainStageThread::OnStop, data = " + event_data)
+        print ("MainStageThread::OnStop")
 
     def OnStartGame(self,event_data):
-        print ("MainStageThread::OnStartGame, data = ", event_data)
+        print ("MainStageThread::OnStartGame")
         
         # reset running servers list
         self.running_servers = []
@@ -65,34 +65,53 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         reporter = reporter_init()
 
         exploit_class = EXPLOITS[exploit_id]
-        exploits = []
+        exploits = {}
 
         # Run exploit against all teams in game
-        for team in self.current_game_config:
+        current_game_config = self.bl_object.GetCurrentGameConfig()
+        for team in current_game_config:
             print "calling exploit '%s' on %s!" % (exploit_id, team["name"])
             exploit = exploit_class(team)
             exploit.run()
 
-            exploits.append((exploit, team))
+            exploits[team["Robot_ip"]] = {"team": team, "exploit": exploit}
 
         results = []
 
         for i in xrange(2):
             results.append(reporter_wait(reporter))
+            
+         # Update scores with result form exploit
+        scores = self.bl_object.GetSavedScores()
+            
+        for report in results:
+            if report[0] not in exploits.keys():
+                continue
+            
+            score = exploits[report[0]]["exploit"].score(report[1])
+            team = exploits[report[0]]["team"]
+            
+            # Update scores with result form exploit
+            team_score = scores[int(team["id"]) - 1]
+            scores[int(team["id"]) - 1] = (team_score[0], team_score[1], team_score[2] + score)
 
-        for exploit, team in exploits:
-            for report in results:
-                if team["ip"] == report[0]:
-                    score = exploit.score(report[1])
-
-                    # Update scores with result form exploit
-                    scores = list(self.bl_object.GetSavedScores())
-                    scores[int(team["id"]) - 1] += score
-                    self.bl_object.SaveScores(scores)
-
-                    print "%s's score for the exploit: %s" % (team["name"], score)
-                    # TODO: Add the [score] to [team]
-
+            exploits.pop(report[0])
+            
+            print "%s's score for the exploit: %s" % (team["name"], score)
         
+            
+        for no_report in exploits:
+            score = exploits[no_report]["exploit"].score(None)
+            team = exploits[no_report]["team"]
+            team_score = scores[int(team["id"]) - 1]
+            scores[int(team["id"]) - 1] = (team_score[0], team_score[1], team_score[2] + score)
+            
+            print "%s's missed! New score: %d" % (team["name"], scores[int(team["id"]) - 1][2])
+            
+        print scores
+            
+        self.bl_object.SaveScoresCallBack(scores)
+ 
+
         
         

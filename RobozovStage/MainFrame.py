@@ -17,6 +17,9 @@ import wx.lib.newevent as NE
 from GameFrame import GameFrame
 
 TimerEvent, EVT_TIMER_CALLBACK = NE.NewEvent()
+UpdateScoresEvent, EVT_UPDATE_SCORES_CALLBACK = NE.NewEvent()
+SaveScoresEvent, EVT_SAVE_SCORES_CALLBACK = NE.NewEvent()
+
 
 aboutText = """<p>Sorry, there is no information about this program. It is
 running on version %(wxpy)s of <b>wxPython</b> and %(python)s of <b>Python</b>.
@@ -26,6 +29,7 @@ ID_TOURNAMENT_NEW=100
 ID_GAME_NEW=101
 ID_GAME_STOP=102
 ID_TOURNAMENT_SAVE=103
+ID_UPDATE_SCORES=104
 ID_SPLITTER=300
 ID_EXPLOITS_WINDOW=1337
 
@@ -137,7 +141,8 @@ class MainFrame(wx.Frame):
 
         self.p1.Bind(wx.EVT_LEFT_DCLICK, self.ScoreEntry)
 
-        
+        self.Bind(EVT_UPDATE_SCORES_CALLBACK,self.OnUpdateScores)
+        self.Bind(EVT_SAVE_SCORES_CALLBACK,self.OnSaveScores)
 
         size = wx.DisplaySize()
         self.SetSize(size)
@@ -153,6 +158,7 @@ class MainFrame(wx.Frame):
         self.p1.InsertColumn(0, 'Team ID', width=150)
         self.p1.InsertColumn(1, 'Team Name', width=150)
         self.p1.InsertColumn(2, 'Score', wx.LIST_FORMAT_RIGHT, 100)
+        self.scores_list = []
 
     def UpdateTeamsList(self):
         # Build a tuple for each team
@@ -160,6 +166,7 @@ class MainFrame(wx.Frame):
 
         # get saved scores
         saved_scores = self.bl_object.GetSavedScores()
+        print (saved_scores)
 
         for team in teams:
             
@@ -168,17 +175,17 @@ class MainFrame(wx.Frame):
             else:
                 score = 0
                 
-            team_tup = (team['id'], team['name'], str(score))
+            team_tup = (team['id'], team['name'], score)
             self.AddTeamData(team_tup)
 
-        self.bl_object.SaveScores(self.scores_list)
+        self.bl_object.SaveScores(self.scores_list,False)
 
     def AddTeamData(self,team_data):
         self.scores_list.append(team_data)
         
         index = self.p1.InsertStringItem(sys.maxint, team_data[0])
         self.p1.SetStringItem(index, 1, team_data[1])
-        self.p1.SetStringItem(index, 2, team_data[2])
+        self.p1.SetStringItem(index, 2, str(team_data[2]))
 
     def ResetGameList(self):
         self.p2.ClearAll()
@@ -211,9 +218,8 @@ class MainFrame(wx.Frame):
 
             self.bl_object.StartNewGame(match_tup)
             
-
-        game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
-        game_frame.Show()
+            game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
+            game_frame.Show()
 
         
     def OnExploits(self, event):
@@ -246,6 +252,14 @@ class MainFrame(wx.Frame):
         self.p2.SetStringItem(index, 2, match_data[3])
         self.p2.SetStringItem(index, 3, match_data[4])
 
+    def SaveScores(self,new_scores):
+        self.new_scores = new_scores
+        wx.PostEvent(self,SaveScoresEvent())
+        
+    def OnSaveScores(self, event):
+        print ("On save scores")
+        self.bl_object.SaveScores(self.new_scores,True)
+
     def ScoreEntry(self, event):
         index = self.p1.GetFocusedItem()
         
@@ -262,7 +276,7 @@ class MainFrame(wx.Frame):
                 
                 # Save the scores
                 self.scores_list[index] = (self.scores_list[index][0], self.scores_list[index][1], int(new_score)) 
-                self.bl_object.SaveScores(self.scores_list)
+                self.bl_object.SaveScores(self.scores_list,True)
                 
                 print (self.scores_list[index])
                 
@@ -278,8 +292,16 @@ class MainFrame(wx.Frame):
         str_time = datetime.now().strftime('%H:%M:%S')
         self.statusbar.SetStatusText(str_time + " : " + self.stage_status)
 
+    def OnUpdateScores(self, event):
+        print ("Update scores called")
+        self.ResetTeamsList()
+        self.UpdateTeamsList()
+
     def UpdateTimeCallback(self):
         #time_str = datetime.now().strftime('%H:%M:%S')
         wx.PostEvent(self,TimerEvent())
 
+    def UpdateScoresList(self):
+        print ("Update scores event posted")
+        wx.PostEvent(self,UpdateScoresEvent())
 

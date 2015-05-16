@@ -7,11 +7,13 @@
 
 from MainFrame import MainFrame
 from wx import wx
+import os
 from RobozovConfigLoader import RobozovConfigLoader
 import GameThread
 import MainStageThread
 import cPickle as pickle
 from Tournament import TournamentUtility
+
 
 class RobozovStageMain:
 
@@ -49,7 +51,6 @@ class RobozovStageMain:
         self.CloseThreads()
         print ("Main thread is done")
 
-        self.SaveDataBase()
         print ("Database was saved")
 
     def StartThreads(self):
@@ -81,23 +82,44 @@ class RobozovStageMain:
     def LoadDataBase(self):
         
         try:
-            self.saved_scores = pickle.load(open( "socres_save.p", "rb" ))
-        except IOError:
+            self.saved_scores = pickle.load(open( "/home/amirk/scores", "r" ))
+        except IOError as e:
             self.saved_scores = []
+            print (e)
             
         print ("Database loaded")
+        print (self.saved_scores)
 
-    def SaveScores(self,scores_list):
+    def SaveScoresCallBack(self,scores_list):
+        self.top.SaveScores(scores_list)
+    
+    def SaveScores(self,scores_list,update_ui):
         # [0] = team_id
         # [1] = team_name
         # [2] = team_score
         
-        self.saved_scores = scores_list
-        self.SaveDataBase()
+        self.saved_scores = list(scores_list)
+        print (self.saved_scores)
+        
+        if update_ui == True:
+            self.top.UpdateScoresList()
 
+        self.SaveDataBase()
+        
     def SaveDataBase(self):
         pickle.dump( self.config, open( "config_save.p", "wb" ) )
-        pickle.dump( self.saved_scores, open( "socres_save.p", "wb" ) )
+        print "~~~~~~~~~~~~~~~~~~~~"
+        print self.saved_scores
+        
+        if os.path.exists("/home/amirk/scores"):
+            os.unlink("/home/amirk/scores")
+            
+        f = open("/home/amirk/scores", "w")
+        pickle.dump(self.saved_scores, f)
+        f.close()
+        print pickle.load(open("/home/amirk/scores", "r"))
+        print "~~~~~~~~~~~~~~~~~~~~"
+        
         print ("db saved")
 
     def GetConfig(self):
@@ -128,6 +150,7 @@ class RobozovStageMain:
             teams_config.append(self.config.getConfigData()["Teams"][team - 1]) # team - 1 => team number to list index
 
         self.current_game_config = teams_config
+        
         self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START_GAME, teams_config)
 
     def SendExploit(self,exploit_data):
