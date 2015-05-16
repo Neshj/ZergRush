@@ -130,6 +130,9 @@ class RobozovStageMain:
         self.current_game_config = teams_config
         self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START_GAME, teams_config)
 
+    def SendExploit(self,exploit_data):
+        self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_SEND_EXPLOIT, exploit_data)
+    
     def GetCurrentGameConfig(self):
         return (self.current_game_config)
 
