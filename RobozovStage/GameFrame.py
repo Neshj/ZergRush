@@ -65,6 +65,7 @@ class GameFrame(wx.Frame):
 
         self.bl_object = bl_object
         self.config_data = self.bl_object.GetConfig()
+        print (self.config_data)
         
         # Get the Current game config
         self.current_game_config = self.bl_object.GetCurrentGameConfig()

@@ -82,7 +82,7 @@ class RobozovStageMain:
     def LoadDataBase(self):
         
         try:
-            self.saved_scores = pickle.load(open( "/home/amirk/scores", "r" ))
+            self.saved_scores = pickle.load(open( "/home/yusuf/ZergRush/RobozovStage/scores", "r" ))
         except IOError as e:
             self.saved_scores = []
             print (e)
@@ -108,17 +108,13 @@ class RobozovStageMain:
         
     def SaveDataBase(self):
         pickle.dump( self.config, open( "config_save.p", "wb" ) )
-        print "~~~~~~~~~~~~~~~~~~~~"
-        print self.saved_scores
         
-        if os.path.exists("/home/amirk/scores"):
-            os.unlink("/home/amirk/scores")
+        if os.path.exists("/home/yusuf/ZergRush/RobozovStage/scores"):
+            os.unlink("/home/yusuf/ZergRush/RobozovStage/scores")
             
-        f = open("/home/amirk/scores", "w")
+        f = open("/home/yusuf/ZergRush/RobozovStage/scores", "w")
         pickle.dump(self.saved_scores, f)
         f.close()
-        print pickle.load(open("/home/amirk/scores", "r"))
-        print "~~~~~~~~~~~~~~~~~~~~"
         
         print ("db saved")
 
