@@ -7,6 +7,7 @@ EVT_ID_START = 1
 EVT_ID_STOP = 2
 EVT_ID_START_GAME = 3
 EVT_ID_TERMINATE_GAME = 4
+EVT_ID_SEND_EXPLOIT = 5
 
 class MainStageThread (EventDrivenThread.EventDrivenThread):
         
@@ -17,6 +18,7 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         self.BindEvent(EVT_ID_STOP, self.OnStop)
         self.BindEvent(EVT_ID_START_GAME, self.OnStartGame)
         self.BindEvent(EVT_ID_TERMINATE_GAME, self.OnTerminateGame)
+        self.BindEvent(EVT_ID_SEND_EXPLOIT, self.OnSendExlpoit)
         
         self.servers = []
         
@@ -51,3 +53,8 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         for server in self.running_servers:
             server.Terminate()
             
+    def OnSendExlpoit(self,event_data):
+        print ("MainStageThread::OnSendExploit, data = " + event_data)
+        
+        
+        
