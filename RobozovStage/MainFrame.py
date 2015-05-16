@@ -158,8 +158,17 @@ class MainFrame(wx.Frame):
         # Build a tuple for each team
         teams = self.config_data['Teams']
 
+        # get saved scores
+        saved_scores = self.bl_object.GetSavedScores()
+
         for team in teams:
-            team_tup = (team['id'], team['name'], '0')
+            
+            if len(saved_scores) > 0:
+                score = saved_scores[int(team['id'])-1][2]
+            else:
+                score = 0
+                
+            team_tup = (team['id'], team['name'], str(score))
             self.AddTeamData(team_tup)
 
     def AddTeamData(self,team_data):

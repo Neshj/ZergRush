@@ -32,6 +32,7 @@ class RobozovStageMain:
         print (data)
         print (len(data["Teams"]))
 
+        self.LoadDataBase()
 
     def ShowUI(self):
         app = wx.App(redirect=False)   # Error messages go to popup window
@@ -77,6 +78,14 @@ class RobozovStageMain:
         print ("All threads finished")
 
     # Business Logic functions
+    def LoadDataBase(self):
+        
+        try:
+            self.saved_scores = pickle.load(open( "socres_save.p", "rb" ))
+        except IOError:
+            self.saved_scores = []
+            
+        print ("Database loaded")
 
     def SaveScores(self,scores_list):
         # [0] = team_id
@@ -93,6 +102,9 @@ class RobozovStageMain:
 
     def GetConfig(self):
         return (self.config.getConfigData())
+
+    def GetSavedScores(self):
+        return (self.saved_scores)
 
     def NewTournament(self):
         self.match_list = TournamentUtility().GenerateTournament(self.config.getConfigData())
