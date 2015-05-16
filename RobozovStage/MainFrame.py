@@ -171,6 +171,8 @@ class MainFrame(wx.Frame):
             team_tup = (team['id'], team['name'], str(score))
             self.AddTeamData(team_tup)
 
+        self.bl_object.SaveScores(self.scores_list)
+
     def AddTeamData(self,team_data):
         self.scores_list.append(team_data)
         
