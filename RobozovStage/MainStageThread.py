@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import EventDrivenThread
+from exploits import exploits_list
+from exploits.reporter import *
 from ServerLauncher import RoboServer
 
 QUEUE_SIZE = 10
@@ -24,6 +26,8 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         
     def OnStart(self,event_data):
         print ("MainStageThread::OnStart, data = " + event_data)
+
+        self.bl_object = event_data
     
     def OnStop(self,event_data):
         print ("MainStageThread::OnStop, data = " + event_data)
@@ -52,9 +56,43 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         # send terminate to all running servers
         for server in self.running_servers:
             server.Terminate()
-            
+
+    # event_data = exploit_id
     def OnSendExlpoit(self,event_data):
         print ("MainStageThread::OnSendExploit, data = " + event_data)
+
+        exploit_id = event_data
+        reporter = reporter_init()
+
+        exploit_class = EXPLOITS[exploit_id]
+        exploits = []
+
+        # Run exploit against all teams in game
+        for team in self.current_game_config:
+            print "calling exploit '%s' on %s!" % (exploit_id, team["name"])
+            exploit = exploit_class(team)
+            exploit.run()
+
+            exploits.append((exploit, team))
+
+        results = []
+
+        for i in xrange(2):
+            results.append(reporter_wait(reporter))
+
+        for exploit, team in exploits:
+            for report in results:
+                if team["ip"] == report[0]:
+                    score = exploit.score(report[1])
+
+                    # Update scores with result form exploit
+                    scores = list(self.bl_object.GetSavedScores())
+                    scores[int(team["id"]) - 1] += score
+                    self.bl_object.SaveScores(scores)
+
+                    print "%s's score for the exploit: %s" % (team["name"], score)
+                    # TODO: Add the [score] to [team]
+
         
         
         

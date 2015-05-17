@@ -66,7 +66,7 @@ class RobozovStageMain:
         for t in self.threads:
             t.start()
 
-        self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START, "Hello")
+        self.main_stage_thread.PostEvent(MainStageThread.EVT_ID_START, self)
 
     def CloseThreads(self):
         print ("Closing Threads")
