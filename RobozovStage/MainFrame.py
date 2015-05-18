@@ -15,6 +15,7 @@ from datetime import datetime
 import wx.lib.newevent as NE
 
 from GameFrame import GameFrame
+from NewGameFrame import NewGameFrame
 
 TimerEvent, EVT_TIMER_CALLBACK = NE.NewEvent()
 UpdateScoresEvent, EVT_UPDATE_SCORES_CALLBACK = NE.NewEvent()
@@ -161,12 +162,15 @@ class MainFrame(wx.Frame):
         self.scores_list = []
 
     def UpdateTeamsList(self):
-        # Build a tuple for each team
-        teams = self.config_data['Teams']
-
         # get saved scores
         saved_scores = self.bl_object.GetSavedScores()
-        print (saved_scores)
+
+        # Build a tuple for each team
+        teams = list(self.config_data['Teams'])
+        
+        
+
+        print teams
 
         for team in teams:
             
@@ -206,11 +210,16 @@ class MainFrame(wx.Frame):
 
     def OnNewGame(self,event):
         print ("New Game")
+        ng = NewGameFrame("<<Robotzov Stage>>", self.bl_object)
+        ng.parent_window = self
+        ng.Show()
 
+    def OldOnNewGame(self, event):
         # current_game = 0
         if len(self.match_list) > 0:
             match_tup = self.match_list[self.current_game]
-
+            
+            # Color the current game red
             self.p2.Select(self.current_game, True)
             item = self.p2.GetFirstSelected()
             self.p2.SetItemBackgroundColour(item, "Red")
@@ -220,6 +229,8 @@ class MainFrame(wx.Frame):
             
             game_frame = GameFrame("<<Robozov Stage>>",self.bl_object)
             game_frame.Show()
+            
+            self.current_game += 1
 
         
     def OnExploits(self, event):
@@ -238,10 +249,11 @@ class MainFrame(wx.Frame):
     def OnNewTournament(self,event):
         print ("New Tournament")
         self.ResetGameList()
-        self.match_list = self.bl_object.NewTournament()
+        self.match_list = []
+        #self.match_list = self.bl_object.NewTournament()
 
-        for i in range(0,len(self.match_list)):
-            self.AddMatchData(i + 1, self.match_list[i])
+        #for i in range(0,len(self.match_list)):
+        #    self.AddMatchData(i + 1, self.match_list[i])
 
     def OnSaveTournament(self,event):
         print ("Save Tournament")

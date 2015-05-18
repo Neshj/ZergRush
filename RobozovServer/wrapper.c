@@ -696,12 +696,12 @@ static bool HandleSimpleServer(const connection_t *connection)
 
 	recved_bytes = (uint32_t) res;
 
-	DEBUG(printf("Simple receved %d bytes\n", recved_bytes);)
+	/* DEBUG(printf("Simple receved %d bytes\n", recved_bytes);) */
 
 	if (SendHelperFrag(connection->wrapper_socket_client, buffer, recved_bytes + size, &sent_bytes) == false)
 		return false;
 
-	DEBUG(printf("Sent %d bytes to wrapper\n", sent_bytes);)
+	/* DEBUG(printf("Sent %d bytes to wrapper\n", sent_bytes);) */
 
 	return true;
 }

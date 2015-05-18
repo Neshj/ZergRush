@@ -5,22 +5,22 @@
 	<RemotesNetwork subnet="100.1.0.0" />
 	<RobotsNetwork subnet="100.2.0.0" />
 	<Teams>
-		<team id="1" name="team1" Remote_ip="192.168.1.101" server_remote_port="10011" 
-					  Robot_ip="10.0.0.101" server_robot_port="10012" />
+		<team id="1" name="CyberKids" Remote_ip="10.0.0.101" server_remote_port="10011" 
+					  Robot_ip="192.168.1.230" server_robot_port="10003" />
 
-		<team id="2" name="team2" Remote_ip="192.168.1.102" server_remote_port="10021" 
-					  Robot_ip="10.0.0.102" server_robot_port="10022" />
+		<team id="2" name="The Silver Robot" Remote_ip="10.0.0.102" server_remote_port="10021" 
+					  Robot_ip="192.168.1.102" server_robot_port="10022" />
 
-		<team id="3" name="team3" Remote_ip="192.168.1.103" server_remote_port="10031" 
-					  Robot_ip="10.0.0.103" server_robot_port="10032" />
+		<team id="3" name="Ogi and the Cockroaches" Remote_ip="10.0.0.103" server_remote_port="10031" 
+					  Robot_ip="192.168.1.103" server_robot_port="10032" />
 
-		<team id="4" name="team4" Remote_ip="192.168.1.104" server_remote_port="10041" 
-					  Robot_ip="10.0.0.104" server_robot_port="10041" />
+		<team id="4" name="Garbage Collector" Remote_ip="10.0.0.104" server_remote_port="10041" 
+					  Robot_ip="192.168.1.104" server_robot_port="10042" />
 
-		<team id="5" name="team5" Remote_ip="192.168.1.105" server_remote_port="10051" 
-					  Robot_ip="10.0.0.105" server_robot_port="10052" />
+		<team id="5" name="RoboDos" Remote_ip="10.0.0.105" server_remote_port="10051" 
+					  Robot_ip="192.168.1.105" server_robot_port="10052" />
 
-		<team id="6" name="team6" Remote_ip="192.168.1.106" server_remote_port="10006" 
-					  Robot_ip="10.0.0.106" server_robot_port="10006" />
+		<team id="6" name="Two Hills" Remote_ip="10.0.0.106" server_remote_port="10061" 
+					  Robot_ip="192.168.1.106" server_robot_port="10062" />
 	</Teams>
 </RobozovArena>

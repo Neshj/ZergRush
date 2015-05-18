@@ -3,7 +3,7 @@ import EventDrivenThread
 from exploits.exploits_list import *
 from exploits.reporter import *
 from ServerLauncher import RoboServer
-
+from socket import *
 QUEUE_SIZE = 10
 EVT_ID_START = 1
 EVT_ID_STOP = 2
@@ -41,7 +41,7 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
         # build a server for each team
         for team_config in event_data: 
             server = RoboServer(team_config['name'], \
-				                team_config['Remote_ip'], \
+		                team_config['Remote_ip'], \
                                 team_config['Robot_ip'], \
                                 team_config['server_remote_port'], \
                                 team_config['server_robot_port'])
@@ -60,6 +60,9 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
     # event_data = exploit_id
     def OnSendExlpoit(self,event_data):
         print ("MainStageThread::OnSendExploit, data = " + event_data)
+        
+        s = socket(AF_INET, SOCK_DGRAM)
+        s.connect(("localhost", 9876))
 
         exploit_id = event_data
         reporter = reporter_init()
@@ -80,22 +83,37 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
 
         for i in xrange(2):
             results.append(reporter_wait(reporter))
+
+        print "~~~~~~~~~~~~~~~~~~ RESULTS ~~~~~~~~~~~~~~~~~~~~~~~"
+        print results
             
-         # Update scores with result form exploit
+        # Update scores with result form exploit
         scores = self.bl_object.GetSavedScores()
             
         for report in results:
-            if report[0] not in exploits.keys():
+            if report[1] == "":
+                continue
+
+            if report[1][0] not in exploits.keys():
                 continue
             
-            score = exploits[report[0]]["exploit"].score(report[1])
-            team = exploits[report[0]]["team"]
+            score = exploits[report[1][0]]["exploit"].score(report[0])
+            team = exploits[report[1][0]]["team"]
             
             # Update scores with result form exploit
             team_score = scores[int(team["id"]) - 1]
             scores[int(team["id"]) - 1] = (team_score[0], team_score[1], team_score[2] + score)
+            
+            # Send score to spectator
+            if team["Robot_ip"] == current_game_config[0]["Robot_ip"]:
+                s.send("Score1 %d" % score)
+                print "SENT SCORE1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            else:
+                s.send("Score2 %d" % score)
+                print "SENT SCORE2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-            exploits.pop(report[0])
+            
+            exploits.pop(report[1][0])
             
             print "%s's score for the exploit: %s" % (team["name"], score)
         
@@ -105,6 +123,14 @@ class MainStageThread (EventDrivenThread.EventDrivenThread):
             team = exploits[no_report]["team"]
             team_score = scores[int(team["id"]) - 1]
             scores[int(team["id"]) - 1] = (team_score[0], team_score[1], team_score[2] + score)
+            # Send score to spectator
+            if team["Robot_ip"] == current_game_config[0]["Robot_ip"]:
+                s.send("Score1 %d" % score)
+                print "SENT SCORE1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            else:
+                s.send("Score2 %d" % score)
+                print "SENT SCORE2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
             
             print "%s's missed! New score: %d" % (team["name"], scores[int(team["id"]) - 1][2])
             

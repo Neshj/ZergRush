@@ -46,7 +46,7 @@ typedef enum
 				sleep((time));			\
 				digitalWrite((led), LOW);
 #else
-#define BLINK(led, time, utime )	printf("LED: %d\n", (led))
+#define BLINK(led, time, utime )	/* printf("LED: %d\n", (led)) */
 #define pinMode(x, y)
 #define wiringPiSetup()
 #endif
